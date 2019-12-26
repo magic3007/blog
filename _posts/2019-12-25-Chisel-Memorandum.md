@@ -7,7 +7,7 @@ title: Chisel Memorandum
 
 [TOC]
 
-## Scala & Chisel Primer
+## Scala
 
 Chisel是一种基于Scala的高层次硬件描述语言. 而Scala的设计哲学即为集成面向对象编程和函数式编程, 非常适合用来作为硬件描述语言. Scala 运行在Java虚拟机上, 并兼容现有的Java程序. 作为基础我们必须先了解一些Scala的一些语法以及编程特性. 但是需要时刻记住的是, Chisel毕竟是一门硬件描述语言, 我们需要时刻注意`Scala Object`与`Chisel Object`的区别与联系.
 
@@ -106,6 +106,8 @@ for (var x <- a to b) // [a,b]
 
 for (var x <- a until b) // [a,b)
 
+for (var x <- a to b by 2) // [a,b], step = 2
+
 for (var x <- a to b; var y <- a to b)
 
 for (var x <- list)
@@ -114,7 +116,7 @@ for (var x <- list
      if condition1; is condition2 ...)
 ```
 
-### `yield`  in `for` statement
+### *yield*  in for statement
 
 类似于Python, 我们还能通过`yield`关键字保存循环变量的值.
 
@@ -303,8 +305,21 @@ def <MethodName>[T](<parameter name> : T [, ...]): [return type] = {
 
 - Scala的类通过`new`创建对象
 - Scala通过`extend`关键字继承类, 重新非抽象字段需要使用`overwrite`, 同时Scala不支持多重继承
-- singleton使用`object`; 当单例对象与某个类共享同一个名称时，他被称作是这个类的伴生对象companion object, 类和它的伴生对象可以互相访问其私有成员 
+- Scala中singleton使用`object`; 当单例对象与某个类共享同一个名称时，他被称作是这个类的伴生对象companion object, 类和它的伴生对象可以互相访问其私有成员 
 - Scala中接口用特征trait
+
+### List
+
+- 构造列表的两种基本方法: `list(x,y,z)`等价于`x::y::z::Nil`
+- 方法`head`返回第一个元素, `tail`返回除了第一个元素外的其他元素, `isEmpty`判断是否为空
+- 连接列表用`:::`, `++` 或者 `List.concat`
+- 生成一个指定重复数量的元素列表用`List.fill`
+- 通过给定函数来生成列表用`List.tabulate`
+- 反转列表用`List.reverse`
+
+## Chisel Primer
+
+
 
 ## 模块参数化
 
