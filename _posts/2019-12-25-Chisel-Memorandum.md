@@ -7,9 +7,9 @@ title: Chisel Memorandum
 
 [TOC]
 
-## Scala
+## Scala Primer
 
-Chisel是一种基于Scala的高层次硬件描述语言. 而Scala的设计哲学即为集成面向对象编程和函数式编程, 非常适合用来作为硬件描述语言. Scala 运行在Java虚拟机上, 并兼容现有的Java程序. 作为基础我们必须先了解一些Scala的一些语法以及编程特性. 但是需要时刻记住的是, Chisel毕竟是一门硬件描述语言, 我们需要时刻注意`Scala Object`与`Chisel Object`的区别与联系.
+Chisel是一种基于Scala的高层次硬件描述语言. 而Scala的设计哲学即为集成面向对象编程和函数式编程, 非常适合用来作为硬件描述语言. Scala 运行在Java虚拟机上, 并兼容现有的Java程序. 作为基础我们必须先了解一些Scala的一些语法以及编程特性. 
 
 Scala一门面向对象语言, 可以认为Scala程序是`Object`对象的集合. 顺便复习一下下面几个概念的关系:
 
@@ -69,21 +69,6 @@ Scala的常用数据类型见[此](https://www.tutorialspoint.com/scala/scala_qu
 <val|var> <VariableName> [: DataType] [= Initial Value]
 ```
 
-需要注意的是, `Chisel Oject`描述的是一个一个硬件实体, 即使这个硬件存的值会变, 但是这个硬件本身不会变, 故需要用常量`val`定义.
-
-```scala
-// Chisel Code: Declare a new module definition
-class Passthrough extends Module {
-  val io = IO(new Bundle {
-    val in = Input(UInt(4.W))
-    val out = Output(UInt(4.W))
-  })
-  io.out := io.in
-}
-```
-
-我们可以看到, 一个`Chisel Object`实际是一个继承一个被称为`Module`的`Scala object`, 其定义了`reset`, `clock`等基本硬件单元的接线.
-
 ### Conditionals
 
 Scala的条件变量与C/C++, Java等类似, 同时`if`语句也有类似于C/C++中三目运算符的返回值, 其返回值为其所选择的分支的最后一行语句的返回值.
@@ -95,6 +80,80 @@ val likelyCharactersSet = if (alphabet.length == 26)
 else 
     "not english"
 println(likelyCharactersSet)
+```
+
+值匹配使用`match/case`, 通配符是`-`:
+
+```scala
+// y is an integer variable defined somewhere else in the code
+val y = 7
+/// ...
+val x = y match {
+  case 0 => "zero" // One common syntax, preferred if fits in one line
+  case 1 =>        // Another common syntax, preferred if does not fit in one line.
+      "one"        // Note the code block continues until the next case
+  case 2 => {      // Another syntax, but curly braces are not required
+      "two"
+  }
+  case _ => "many" // _ is a wildcard that matches all values
+}
+println("y is " + x)
+```
+
+Scala还支持多重值匹配:
+
+```scala
+def animalType(biggerThanBreadBox: Boolean, meanAsCanBe: Boolean): String = {
+  (biggerThanBreadBox, meanAsCanBe) match {
+    case (true, true) => "wolverine"
+    case (true, false) => "elephant"
+    case (false, true) => "shrew"
+    case (false, false) => "puppy"
+  }
+}
+println(animalType(true, true))
+```
+
+Scala对于类型匹配和多重类型匹配, 分别需要使用`s: <Type>` 和 `_: <Type>`:
+
+```scala
+val sequence = Seq("a", 1, 0.0)
+sequence.foreach { x =>
+  x match {
+    case s: String => println(s"$x is a String")
+    case s: Int    => println(s"$x is an Int")
+    case s: Double => println(s"$x is a Double")
+    case _ => println(s"$x is an unknown type!")
+  }
+}
+```
+
+```scala
+val sequence = Seq("a", 1, 0.0)
+sequence.foreach { x =>
+  x match {
+    case _: Int | _: Double => println(s"$x is a number!")
+    case _ => println(s"$x is an unknown type!")
+  }
+}
+```
+
+但是注意Scala的类型匹配可能有多态导致的问题:
+
+```scala
+val sequence = Seq(Seq("a"), Seq(1), Seq(0.0))
+sequence.foreach { x =>
+  x match {
+    case s: Seq[String] => println(s"$x is a String")
+    case s: Seq[Int]    => println(s"$x is an Int")
+    case s: Seq[Double] => println(s"$x is a Double")
+  }
+}
+/*
+List(a) is a String
+List(1) is a String
+List(0.0) is a String
+*/
 ```
 
 ### Loop
@@ -171,6 +230,12 @@ def asciiTriangle(rows: Int) {
 
 // printRow(1) // This would not work, since we're calling printRow outside its scope
 asciiTriangle(6)
+```
+
+在Scala中, 函数的类型通过`(<para. list>) => T`指定. 在函数式编程中, 我们往往只关心返回值的类型, 也可以用`=> T`指定, 如`List`的`fill`函数定义为:
+
+```scala
+def fill[A](n: Int)(elem: => A): LazyList[A]
 ```
 
 作为函数式编程设计语言, Scala有很多编程特性值得我们学习一下.
@@ -291,35 +356,558 @@ var factor = 3
 val multiplier = (i:Int) => i * factor
 ```
 
-### Template
+### Class, Object & Trait
 
-函数模板的一个例子如下
+以及简单的class定义的例子是:
 
 ```scala
-def <MethodName>[T](<parameter name> : T [, ...]): [return type] = { 
-	... 
+class MyBundle extends Bundle {
+	val a = Bool ()
+	val b = UInt (32. W )
 }
 ```
 
-### Class, Object & Trait
+Scala还支持**inline defining**, 这实际上创建了一个**anonymous class**匿名类:
+
+```scala
+val my_bundle = new Bundle {
+	val a = Bool ()
+	val b = UInt (32. W )
+}
+```
 
 - Scala的类通过`new`创建对象
+
 - Scala通过`extend`关键字继承类, 重新非抽象字段需要使用`overwrite`, 同时Scala不支持多重继承
-- Scala中singleton使用`object`; 当单例对象与某个类共享同一个名称时，他被称作是这个类的伴生对象companion object, 类和它的伴生对象可以互相访问其私有成员 
+
+- Scala中singleton使用`object`; 当单例对象与某个类共享同一个名称时，他被称作是这个类的**伴生对象**(companion object); 反过来这个类被称为这个对象的**伴生类**. 类和它的伴生对象可以互相访问其私有成员. 
+
+  伴生对象和伴生类在Scala中非常重要. 之前说过, Scala中的`Int`, `List`等不是原生数据类型, 是一个对象. 其实这个说法不同准确, 实际上Scala中`UInt`, `List`等, 既是一个类名, 也是一个(单例)对象名, 它们两个互为伴生类和伴生对象. 之后我们可以看到这样设计的一个妙用. 
+
 - Scala中接口用特征trait
 
-### List
+#### *Apply*
+
+这里必须讨论一下关键字`apply`, 这在Chisel的源码的经常用到. 在Scala中, 函数也是对象, 对于函数来说`apply`方法意味着调用函数本身, 即`fun.apply([parameters list]) = fun([parameters list])`
+
+```scala
+val f = (x : Int) => x + 1
+f.apply(3) // 4
+```
+
+`apply`关键字另外一个作用是用作设计模式中的**工厂模式**. 之前说过, Scala中的`List`既是一个类名, 也是一个单例对象名. 举个例子, 我们可以对`Object List` 使用`List.apply(1, 2, 3)`或者直接`List(1, 2, 3)`创建一个`Class List`的对象实例.
+
+###  scala.collection
+
+列举collection里面几个常用的类及其常用的methods
+
+#### List
 
 - 构造列表的两种基本方法: `list(x,y,z)`等价于`x::y::z::Nil`
 - 方法`head`返回第一个元素, `tail`返回除了第一个元素外的其他元素, `isEmpty`判断是否为空
 - 连接列表用`:::`, `++` 或者 `List.concat`
-- 生成一个指定重复数量的元素列表用`List.fill`
+- 生成一个指定重复数量的元素列表用`List.fill[A](n: Int)(elem: => A): LazyList[A]`
 - 通过给定函数来生成列表用`List.tabulate`
 - 反转列表用`List.reverse`
+- 取前若干个元素用`def take(n: Int): List[A]` 
+
+#### Map
+
+这里列出一些常用的methods
+
+- `Object Map`的*apply*: `val map=Map("a" -> 1)`
+
+- `.get`
+
+
+#### Seq
+
+- `def foreach[U](f: ((K, V)) => U): Unit`
+
+### *Option*, *Some* & *None*
+
+`option`是Scala的一个泛型抽象类, 分别有两个子类`Some` 和 `None`, collection中类的方法的返回值中经常是`option`类型的
+
+```scala
+val map = Map("a" -> 1)
+val a = map.get("a")
+println(a)
+val b = map.get("b")
+println(b)
+
+/*
+Some(1)
+None
+*/
+```
+
+`Option`有方法`get`和`getOrElse`, 可用于决定取值的行为:
+
+```scala
+val some = Some(1)
+val none = None
+println(some.get)          // Returns 1
+// println(none.get)       // Errors!
+println(some.getOrElse(2)) // Returns 1
+println(none.getOrElse(2)) // Returns 2
+```
+
+对于类的省缺参数, 一般用`None`. 在`match/case`中, 可以利用多态的性质进行匹配:
+
+```scala
+class DelayBy1(resetValue: Option[UInt] = None) extends Module {
+  val io = IO(new Bundle {
+    val in  = Input( UInt(16.W))
+    val out = Output(UInt(16.W))
+  })
+  val reg = resetValue match {
+    case Some(r) => RegInit(r)
+    case None    => Reg(UInt())
+  }
+  reg := io.in
+  io.out := reg
+}
+
+println(getVerilog(new DelayBy1))
+println(getVerilog(new DelayBy1(Some(3.U))))
+```
+
+### Generic
+
+Scala中, 我们可以在定义class和生成实例的时候指定泛型, 
+
+```scala
+class Stack[A] {
+  private var elements: List[A] = Nil
+  def push(x: A) { elements = x :: elements }
+  def peek: A = elements.head
+  def pop(): A = {
+    val currentTop = peek
+    elements = elements.tail
+    currentTop
+  }
+}
+
+val stack = new Stack[Int]
+stack.push(1)
+stack.push(2)
+println(stack.pop)  // prints 2
+println(stack.pop)  // prints 1
+```
+
+除此以外, Scala关于generic还有一个非常有趣的概念: **Upper Type Bound** 和 **Lower Type Bound**, 实际上着两者规定了类之间的继承关系.
+
+```scala
+T <: A // T is the subclass of A
+T >: B // B is the subclass of T
+T >: B <: A // B is the subclass of T, T is the subclass of A
+```
+
+在generic class或generic的定义中, 我们可以用upper/lower type bound约束传入的类的类型:
+
+```scala
+abstract class Animal {
+ def name: String
+}
+
+abstract class Pet extends Animal {}
+
+class Cat extends Pet {
+  override def name: String = "Cat"
+}
+
+class Dog extends Pet {
+  override def name: String = "Dog"
+}
+
+class Lion extends Animal {
+  override def name: String = "Lion"
+}
+
+class PetContainer[P <: Pet](p: P) {
+  def pet: P = p
+}
+
+val dogContainer = new PetContainer[Dog](new Dog)
+val catContainer = new PetContainer[Cat](new Cat)
+
+// this would not compile
+val lionContainer = new PetContainer[Lion](new Lion)
+```
+
+### About Debug
+
+- 断言使用 `require(...)`
+
+- `println(s"...$<...>")` 类似于Python, 是可执行的字符串.
+
+  ```scala
+  class ParameterizedScalaObject(param1: Int, param2: String) {
+    println(s"I have parameters: param1 = $param1 and param2 = $param2")
+  }
+  val obj1 = new ParameterizedScalaObject(4,     "Hello")
+  val obj2 = new ParameterizedScalaObject(4 + 2, "World")
+  ```
+
+  
 
 ## Chisel Primer
 
+### Chisel Module
 
+Chisel建立在Scala之上, 一个`Chisel Object`实际是一个继承一个被称为`Module`的`Scala object`, 其定义了`reset`, `clock`等硬件单元的基本接线. 需要时刻记住的是, Chisel毕竟是一门硬件描述语言, 我们需要时刻注意`Scala Object`与`Chisel Object`的区别与联系. 下面定义了一个简单的`Chisel Object`. 
 
-## 模块参数化
+```scala
+// Chisel Code: Declare a new module definition
+class Passthrough extends Module {
+  val io = IO(new Bundle {
+    val in = Input(UInt(4.W))
+    val out = Output(UInt(4.W))
+  })
+  io.out := io.in
+}
+```
+
+这个例子有几点值得注意:
+
+- `Chisel Oject`描述的是一个一个硬件实体, 即使这个硬件存的值会变, 但是这个硬件本身不会变, 故需要用常量里面的`val`定义.
+
+- `val io = IO(...)`. 输入和输出接口我们必须定义在一个特殊常量中, 且这个这个常量名必须是`io`, 并通过`Module`里面的单例对象`IO`的`apply`方法生成. 单例对象`IO`的`apply`方法声明见[此](https://www.chisel-lang.org/api/latest/chisel3/experimental/IO$.html).
+
+- ```scala
+  new Bundle {
+      val in = Input(UInt(4.W))
+      val out = Output(UInt(4.W))
+  }
+  ```
+
+  利用**inline defining**创建了匿名类. `Input`和 `Output` 都是Module内部的Object, 可以理解为工厂模式.
+
+  另外Chisel也有自己的Data Types. `UInt(4.W)`可以代表一个硬件, 而不一个是Scala的数字变量, 同时`4.W`也是一个Chisel定义的变量.
+
+- ` io.out := io.in`. 注意我们是硬件电路意义上的连线不是赋值, 需要用`:=`而不是Scala的`=`(而且`val`也不支持赋值)
+
+### Chisel Data Types , Conditionals & Operations
+
+这部分毕竟简单, 只需要主要到Chisel和Scala的数据类型区别和联系就可以了(Chisel的基本数据类型会映射到硬件, 而Scala不会). 这部分直接看[Chisel CheatSheet](https://github.com/freechipsproject/chisel-cheatsheet/releases/latest/download/chisel_cheatsheet.pdf)即可. 这里提几个需要注意的点:
+
+- `+` 不会考虑进位, 考虑进位需要用到 `+&`
+- 判断是否相等是triple qeuals`===`
+- Chisel常数定义类似于 `-3.S`, `1.U`等, `32.W`用于指定位宽 
+
+### Wire, Register & Memory
+
+**wire**仅仅通过线连接, 可立刻更新.
+
+```scala
+// Allocate a as wire of type UInt ()
+val x = Wire ( UInt ())
+x := y // Connect wire y to wire x
+```
+
+**register**只有在时钟上升沿的时候才会更新, 常用的函数有:
+
+```scala
+RegInit(7.U(32.w)) // reg with initial value 7
+RegNext(next_val) // update each clock, no init
+RegEnable(next, enable) // update, with enable gate
+```
+
+### About Debug
+
+- 编译时断言用Scala的`require(...)`, 模拟时的断言需要用Chisel的`assert(...)`
+
+- 模拟时输出用Chisel的`printf(...)`,同时其也支持可执行字符串`printf(p"$<name>")`
+
+#### Unit Test in Chisel
+
+  常用单元测试导入的package和测试方法如下. 
+
+```scala
+import chisel3.iotesters.{ChiselFlatSpec, Driver, PeekPokeTester}
+
+Driver( () => new <ModuleName>){
+    c => new PeekPokeTester(c) {
+        poke(c.io.in, ...)
+        expect(c.io.out, ...)
+        step(<n_steps>)
+    }
+}
+```
+
+### Chisel Design Trick: Parameterization
+
+Chisel利用参数化来生成硬件的tricks有:
+
+- 利用Scala的`Option`作为缺省参数, 或选择性排除某些硬件设备
+- 传入函数作为参数生成硬件设备
+
+一个利用Scala的`Option`作为缺省参数的例子
+
+```scala
+class DelayBy1(resetValue: Option[UInt] = None) extends Module {
+  val io = IO(new Bundle {
+    val in  = Input( UInt(16.W))
+    val out = Output(UInt(16.W))
+  })
+  val reg = resetValue match {
+    case Some(r) => RegInit(r)
+    case None    => Reg(UInt())
+  }
+  reg := io.in
+  io.out := reg
+}
+
+println(getVerilog(new DelayBy1))
+println(getVerilog(new DelayBy1(Some(3.U))))
+```
+
+有时，我们希望选择性地包括或排除IO. 有一些内部状态或许可以很好地进行调试，但是在最终的系统中我们希望可以隐藏起来. 这里举个参数化指定字段的例子, 还是使用`Option`, 可根据参数定义一个全加器或半加器.
+
+```scala
+class HalfFullAdder(val hasCarry: Boolean) extends Module {
+  val io = IO(new Bundle {
+    val a = Input(UInt(1.W))
+    val b = Input(UInt(1.W))
+    val carryIn = if (hasCarry) Some(Input(UInt(1.W))) else None
+    val s = Output(UInt(1.W))
+    val carryOut = Output(UInt(1.W))
+  })
+  val sum = io.a +& io.b +& io.carryIn.getOrElse(0.U)
+  io.s := sum(0)
+  io.carryOut := sum(1)
+}
+```
+
+当然上述例子, 也可以利用Chisel中<u>零宽度的wire恒为零</u>的特性来做:
+
+```scala
+class HalfFullAdder(val hasCarry: Boolean) extends Module {
+  val io = IO(new Bundle {
+    val a = Input(UInt(1.W))
+    val b = Input(UInt(1.W))
+    val carryIn = Input(if (hasCarry) UInt(1.W) else UInt(0.W))
+    val s = Output(UInt(1.W))
+    val carryOut = Output(UInt(1.W))
+  })
+  val sum = io.a +& io.b +& io.carryIn
+  io.s := sum(0)
+  io.carryOut := sum(1)
+}
+println("Half Adder:")
+println(getVerilog(new HalfFullAdder(false)))
+println("\n\nFull Adder:")
+println(getVerilog(new HalfFullAdder(true)))
+```
+
+下面是一个Mearly Machine的例子, 利用传入的状态转换函数来生成Mearly Machine.
+
+```scala
+// Mealy machine has
+case class BinaryMealyParams(
+  // number of states
+  nStates: Int,
+  // initial state
+  s0: Int,
+  // function describing state transition
+  stateTransition: (Int, Boolean) => Int,
+  // function describing output
+  output: (Int, Boolean) => Int
+) {
+  require(nStates >= 0)
+  require(s0 < nStates && s0 >= 0)
+}
+
+class BinaryMealy(val mp: BinaryMealyParams) extends Module {
+  val io = IO(new Bundle {
+    val in = Input(Bool())
+    val out = Output(UInt())
+  })
+
+  val state = RegInit(UInt(), mp.s0.U)
+
+  // output zero if no states
+  io.out := 0.U
+  for (i <- 0 until mp.nStates) {
+    when (state === i.U) {
+      when (io.in) {
+        state  := mp.stateTransition(i, true).U
+        io.out := mp.output(i, true).U
+      }.otherwise {
+        state  := mp.stateTransition(i, false).U
+        io.out := mp.output(i, false).U
+      }
+    }
+  }
+}
+
+// example from https://en.wikipedia.org/wiki/Mealy_machine
+val nStates = 3
+val s0 = 2
+def stateTransition(state: Int, in: Boolean): Int = {
+  if (in) {
+    1
+  } else {
+    0
+  }
+}
+def output(state: Int, in: Boolean): Int = {
+  if (state == 2) {
+    return 0
+  }
+  if ((state == 1 && !in) || (state == 0 && in)) {
+    return 1
+  } else {
+    return 0
+  }
+}
+
+val testParams = BinaryMealyParams(nStates, s0, stateTransition, output)
+
+class BinaryMealyTester(c: BinaryMealy) extends PeekPokeTester(c) {
+  poke(c.io.in, false)
+  expect(c.io.out, 0)
+  step(1)
+  poke(c.io.in, false)
+  expect(c.io.out, 0)
+  step(1)
+  poke(c.io.in, false)
+  expect(c.io.out, 0)
+  step(1)
+  poke(c.io.in, true)
+  expect(c.io.out, 1)
+  step(1)
+  poke(c.io.in, true)
+  expect(c.io.out, 0)
+  step(1)
+  poke(c.io.in, false)
+  expect(c.io.out, 1)
+  step(1)
+  poke(c.io.in, true)
+  expect(c.io.out, 1)
+  step(1)
+  poke(c.io.in, false)
+  expect(c.io.out, 1)
+  step(1)
+  poke(c.io.in, true)
+  expect(c.io.out, 1)
+}
+val works = iotesters.Driver(() => new BinaryMealy(testParams)) { c => new BinaryMealyTester(c) }
+assert(works) // Scala Code: if works == false, will throw an error
+println("SUCCESS!!") // Scala Code: if we get here, our tests passed!
+```
+
+### Chisel Design Trick: Collection
+
+我们可以利用scala.collection来管理一组硬件,  我们可使用`scala.collection.mutable.ArrayBuffer[A]`, 这个类可以动态增删元素, 比较方便.
+
+下面是一个利用Scala的collection的一个FIR Filter generator.
+
+```scala
+class MyManyElementFir(consts: Seq[Int], bitWidth: Int) extends Module {
+  val io = IO(new Bundle {
+    val in = Input(UInt(bitWidth.W))
+    val out = Output(UInt(bitWidth.W))
+  })
+
+  val regs = mutable.ArrayBuffer[UInt]()
+  for(i <- 0 until consts.length) {
+      if(i == 0) regs += io.in
+      else       regs += RegNext(regs(i - 1), 0.U)
+  }
+  
+  val muls = mutable.ArrayBuffer[UInt]()
+  for(i <- 0 until consts.length) {
+      muls += regs(i) * consts(i).U
+  }
+
+  val scan = mutable.ArrayBuffer[UInt]()
+  for(i <- 0 until consts.length) {
+      if(i == 0) scan += muls(i)
+      else scan += muls(i) + scan(i - 1)
+  }
+
+  io.out := scan.last
+}
+```
+
+有时候, 我们也需要Chisel提供的collection. 比如在Bundle里面需要提供Chisel instance的变量, 又比如我们访问collection的时候下标只能是一个Chisel的硬件(比如Register File). 实际上, Chisel也提供了collection 类型, 被称为`Vec`. Vec与Scala.collection具有相似的方法, 但是元素只能是Chisel instance.  
+
+这里列举一个Vec的常用用法, 实际上和`Reg(..)`和`RegInit(...)`类似, 详细可查文档.
+
+- 初始化长度和初始值: `VecInit(...)`
+
+- 创建但不初始化: `Vec(...)`
+
+这里给了一个FIR Filter的例子, 这里的参数是通过IO传入而不是构造的时候指定的.
+
+```scala
+class MyManyDynamicElementVecFir(length: Int) extends Module {
+  val io = IO(new Bundle {
+    val in = Input(UInt(8.W))
+    val out = Output(UInt(8.W))
+    val consts = Input(Vec(length, UInt(8.W)))
+  })
+
+  // Reference solution
+  val regs = RegInit(VecInit(Seq.fill(length - 1)(0.U(8.W))))
+  for(i <- 0 until length - 1) {
+      if(i == 0) regs(i) := io.in
+      else       regs(i) := regs(i - 1)
+  }
+  
+  val muls = Wire(Vec(length, UInt(8.W)))
+  for(i <- 0 until length) {
+      if(i == 0) muls(i) := io.in * io.consts(i)
+      else       muls(i) := regs(i - 1) * io.consts(i)
+  }
+
+  val scan = Wire(Vec(length, UInt(8.W)))
+  for(i <- 0 until length) {
+      if(i == 0) scan(i) := muls(i)
+      else scan(i) := muls(i) + scan(i - 1)
+  }
+
+  io.out := scan(length - 1)
+}
+```
+
+下面是另一个**Register File**的例子, 由于read的访问下标是传入的参数, 故需要使用Chisel的`Vec`
+
+```scala
+class RegisterFile(readPorts: Int) extends Module {
+    require(readPorts >= 0)
+    val io = IO(new Bundle {
+        val wen   = Input(Bool())
+        val waddr = Input(UInt(5.W))
+        val wdata = Input(UInt(32.W))
+        val raddr = Input(Vec(readPorts, UInt(5.W)))
+        val rdata = Output(Vec(readPorts, UInt(32.W)))
+    })
+    
+    // A Register of a vector of UInts
+    val reg = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
+    
+    when(io.wen && io.waddr=/=0.U){
+        reg(io.waddr) := io.wdata
+    }
+    
+    for(i <- 0 until readPorts){
+        io.rdata(i) := reg(io.raddr(i))
+    }
+
+}
+```
+
+### Chisel Standard Library
+
+Chisel提供了若干个常用的标准库, flow control方面的有`Decoupled`, `FIFO`, `Arbiter`, `RRArbiter`等. 在[Chisel cheatsheet](https://github.com/freechipsproject/chisel-cheatsheet/releases/latest/download/chisel_cheatsheet.pdf)里面有简单的介绍.
+
+#### Flow Control related
+
+### Generate *Verilog* & *Firrtl*
+
+- 分别用`getVerilog(<Module Instance>)` 
+
+  
 

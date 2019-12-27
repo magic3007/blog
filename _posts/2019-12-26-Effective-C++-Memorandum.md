@@ -23,32 +23,30 @@ title: Effective C++ Memorandum
 
 # 常量定义规范
 
-1. 第一个建议是尽可能用`const`, `enum`, `inline` 来 取代 `#define`, 这样的一个理由是可以变量或函数名可以存在于符号表, 方便调试.
+第一个建议是尽可能用`const`, `enum`, `inline` 来 取代 `#define`, 这样的一个理由是可以变量或函数名可以存在于符号表, 方便调试.
 
 > 辨析 `const char *` 和 `char * const`.
 >
 > - 前者是指针指向内容不可变, 后者是指针本身不可变
 > - 头文件常量定义式通常结合两者 `const char * const = "Hello~"`
 
-关于`enum`有一个概念是`enum hack`, 其理论基础是*一个枚举类型的数值可权充`int`被使用*, `enum hack`的行为与`#define`类似, 不会导致非必要的内存分配, 也不能取地址, 但是能更好约束区块作用域block scope.
+关于`enum`有一个概念是**enum hack**, 其理论基础是*一个枚举类型的数值可权充`int`被使用*, **enum hack**的行为与`#define`类似, 不会导致非必要的内存分配, 也不能取地址, 但是能更好约束区块作用域block scope.
 
 最后对于形似函数的宏macros, 最好用inline和模板定义.
 
-2. 关于`const`的用法, 补充几点:
-
+关于`const`的用法, 补充几点:
 - 类似于`const char *` 和 `char * const`, STL的迭代器亦有类似使用方式, 如`const std::vector<int>::iterator`和`std::vector<int>::const_iterator`.
 
 - 对于logical constness的成员函数在对象中尽量使const; 在const成员函数中为摆脱`bitwise constness`的死板限制可以使用`mutable`关键字.
 
-3. 关于对象初始化问题
+最后关于对象初始化问题:
+- 构造函数走好使用成员初始列(member initialization list)
 
-   - 构造函数走好使用成员初始列(member initialization list)
+- 注意构造顺序是在class中的声明顺序而不是成员初始列中顺序, 故成员初始列中的顺序最好与在class中的声明顺序相同
 
-   - 注意构造顺序是在class中的声明顺序而不是成员初始列中顺序, 故成员初始列中的顺序最好与在class中的声明顺序相同
+- 为解决跨编译单位的初始化次序, 推荐使用单体模式(Singleton).
 
-   - 为解决跨编译单位的初始化次序, 推荐使用单体模式(Singleton).
 
-     
 
 # Constructors, Destructors & Assignment Operations
 
