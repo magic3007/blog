@@ -356,9 +356,9 @@ var factor = 3
 val multiplier = (i:Int) => i * factor
 ```
 
-### Class, Object & Trait
+### Object Oriented Programming
 
-以及简单的class定义的例子是:
+先来看一个简单的定义class的例子是:
 
 ```scala
 class MyBundle extends Bundle {
@@ -366,6 +366,71 @@ class MyBundle extends Bundle {
 	val b = UInt (32. W )
 }
 ```
+
+Scala中关于面向对象编程有几个特殊概念需要注意, 分别是abstract class抽象类, trait特征(相当于java的接口, 与抽象类类似, 但是没有构造参数, 可被多重继承), object单例对象, companion object伴生对象和companion class伴生类, case class样例类 以及anonymous class匿名类.
+
+Scala的类通过`new`创建对象, 或者后面我们可以看到也可以通过伴生对象的来创建. 
+
+Scala通过`extend`关键字继承类, 重新定义非抽象字段需要使用`overwrite`, 同时Scala不支持多重继承类, 但是trait是一个例外, 一个class可以继承多个trait. trait的多重继承如下
+
+```scala
+class MyClass extends HasTrait1 with HasTrait2 with HasTrait3
+```
+
+Scala中singleton使用单例对象object, 单例对象object不需要被new. 当单例对象与某个类共享同一个名称时，他被称作是这个类的**伴生对象**(companion object); 反过来这个类被称为这个对象的companion class**伴生类**. 类和它的伴生对象可以互相访问其私有成员. 区分companion object及其companion class的重要依据是名字前是否有new
+
+```scala
+object Lion {
+    def roar(): Unit = println("I'M AN OBJECT!")
+}
+class Lion {
+    def roar(): Unit = println("I'M A CLASS!")
+}
+new Lion().roar()
+Lion.roar()
+/*
+I'M A CLASS!
+I'M AN OBJECT!
+*/
+```
+
+伴生对象和伴生类在Scala中非常重要. 之前说过, Scala中的`Int`, `List`等不是原生数据类型, 是一个对象. 其实这个说法不同准确, 实际上Scala中`UInt`, `List`等, 既是一个类名, 也是一个(单例)对象名, 它们两个互为伴生类和伴生对象. 伴生对象的用处在于: 
+
+1. 定义伴生类中常量
+2. 为伴生类定义多个构造函数(通过`apply`statement), 同时允许在调用类构造函数前后执行某些操作
+
+> #### *Apply*
+>
+> 这里必须讨论一下关键字`apply`, 这在Chisel的源码的经常用到. 在Scala中, 函数也是对象, 对于函数来说`apply`方法意味着调用函数本身, 即`fun.apply([parameters list]) = fun([parameters list])`
+>
+> ```scala
+> val f = (x : Int) => x + 1
+> f.apply(3) // 4
+> ```
+>
+> `apply`关键字另外一个作用是在单例对象中用作设计模式中的**工厂模式**. 之前说过, Scala中的`List`既是一个类名, 也是一个单例对象名. 举个例子, 我们可以对`Object List` 使用`List.apply(1, 2, 3)`或者直接`List(1, 2, 3)`创建一个`Class List`的对象实例.
+
+case class样本类在Scala中是一个比较特殊的类, 其有几个特性:
+
+1. 对于类的所有构造参数允许外部访问
+2. 创建case class的同时创建了伴生对象, 以及在伴生对象中定义了一个默认的`apply`方法, 创建实例的时候不需要new.
+
+下面是一个case class的例子
+
+```scala
+class Nail(length: Int) // Regular class
+val nail = new Nail(10) // Requires the `new` keyword
+// println(nail.length) // Illegal! Class constructor parameters are not by default externally visible
+
+class Screw(val threadSpace: Int) // By using the `val` keyword, threadSpace is now externally visible
+val screw = new Screw(2)          // Requires the `new` keyword
+println(screw.threadSpace)
+
+case class Staple(isClosed: Boolean) // Case class constructor parameters are, by default, externally visible
+val staple = Staple(false)           // No `new` keyword required
+println(staple.isClosed)
+```
+
 
 Scala还支持**inline defining**, 这实际上创建了一个**anonymous class**匿名类:
 
@@ -375,27 +440,6 @@ val my_bundle = new Bundle {
 	val b = UInt (32. W )
 }
 ```
-
-- Scala的类通过`new`创建对象
-
-- Scala通过`extend`关键字继承类, 重新非抽象字段需要使用`overwrite`, 同时Scala不支持多重继承
-
-- Scala中singleton使用`object`; 当单例对象与某个类共享同一个名称时，他被称作是这个类的**伴生对象**(companion object); 反过来这个类被称为这个对象的**伴生类**. 类和它的伴生对象可以互相访问其私有成员. 
-
-  伴生对象和伴生类在Scala中非常重要. 之前说过, Scala中的`Int`, `List`等不是原生数据类型, 是一个对象. 其实这个说法不同准确, 实际上Scala中`UInt`, `List`等, 既是一个类名, 也是一个(单例)对象名, 它们两个互为伴生类和伴生对象. 之后我们可以看到这样设计的一个妙用. 
-
-- Scala中接口用特征trait
-
-#### *Apply*
-
-这里必须讨论一下关键字`apply`, 这在Chisel的源码的经常用到. 在Scala中, 函数也是对象, 对于函数来说`apply`方法意味着调用函数本身, 即`fun.apply([parameters list]) = fun([parameters list])`
-
-```scala
-val f = (x : Int) => x + 1
-f.apply(3) // 4
-```
-
-`apply`关键字另外一个作用是用作设计模式中的**工厂模式**. 之前说过, Scala中的`List`既是一个类名, 也是一个单例对象名. 举个例子, 我们可以对`Object List` 使用`List.apply(1, 2, 3)`或者直接`List(1, 2, 3)`创建一个`Class List`的对象实例.
 
 ###  scala.collection
 
@@ -553,9 +597,9 @@ val lionContainer = new PetContainer[Lion](new Lion)
 
 ## Chisel Primer
 
-### Chisel Module
+### Chisel Model
 
-Chisel建立在Scala之上, 一个`Chisel Object`实际是一个继承一个被称为`Module`的`Scala object`, 其定义了`reset`, `clock`等硬件单元的基本接线. 需要时刻记住的是, Chisel毕竟是一门硬件描述语言, 我们需要时刻注意`Scala Object`与`Chisel Object`的区别与联系. 下面定义了一个简单的`Chisel Object`. 
+Chisel建立在Scala之上, 一个chisel model实际是一个继承一个被称为`Module`的`Scala object`, 其定义了`reset`, `clock`等硬件单元的基本接线. 需要时刻记住的是, Chisel毕竟是一门硬件描述语言, 我们需要时刻注意`Scala Object`与`Chisel Object`的区别与联系. 下面定义了一个简单的`Chisel Object`. 
 
 ```scala
 // Chisel Code: Declare a new module definition
@@ -907,7 +951,7 @@ Chisel提供了若干个常用的标准库, flow control方面的有`Decoupled`,
 
 `Decoupled(...)` 提供了经典的**valid-ready**数据输出模型, 分别有`vaild`, `ready`和`bits`三个字段, 如果需要数据输入模型则使用`Flipped(Decoupled(...))`
 
-`Queue` 可以创建一个两端decoupled的FIFO.
+`Queue` 实际是一个两端decoupled的synonymous FIFO.
 
 一个Queue的例子是:
 
@@ -987,13 +1031,177 @@ class Neuron(inputs: Int, act: FixedPoint => FixedPoint) extends Module {
 }
 ```
 
-### Object Oriented Programming
+Object Oriented Programming
+
+在Chisel中, 我们常用的基类有:
+
+- `Module`: 每一个chisel module都继承自`Module`
+
+- `Bundle`: 每一个chisel IO都继承自`Bundle`, 或某些特殊情况下继承自`Bundle`的超类`Record`
+
+- `Data`: `UInt` 或 `Bundle` 都有`Data`作为超类.
+
+#### Example: Aynonymous FIFO & Asynchronous FIFO
+
+我们用面向对象的方法来实现一个asynchronous FIFO. 首先, 我们先看一下Chisel中的synonymous FIFO,即`Queue`的[源码](https://github.com/freechipsproject/chisel3/blob/master/src/main/scala/chisel3/util/Decoupled.scala)(不得不说, 感觉写得挺好的😀)
+
+先是定义了两个decoupled的接口. 下面的`val enq = Flipped(EnqIO(gen))` 中需要Flipped的原因结合后面class `Queue`注释里面的exmaple比较容易理解.
+
+```scala
+/** Producer - drives (outputs) valid and bits, inputs ready.
+  * @param gen The type of data to enqueue
+  */
+object EnqIO {
+  def apply[T<:Data](gen: T): DecoupledIO[T] = Decoupled(gen)
+}
+/** Consumer - drives (outputs) ready, inputs valid and bits.
+  * @param gen The type of data to dequeue
+  */
+object DeqIO {
+  def apply[T<:Data](gen: T): DecoupledIO[T] = Flipped(Decoupled(gen))
+}
+
+/** An I/O Bundle for Queues
+  * @param gen The type of data to queue
+  * @param entries The max number of entries in the queue.
+  */
+class QueueIO[T <: Data](private val gen: T, val entries: Int) extends Bundle
+{ // See github.com/freechipsproject/chisel3/issues/765 for why gen is a private val and proposed replacement APIs.
+
+  /* These may look inverted, because the names (enq/deq) are from the perspective of the client,
+   *  but internally, the queue implementation itself sits on the other side
+   *  of the interface so uses the flipped instance.
+   */
+  /** I/O to enqueue data (client is producer, and Queue object is consumer), is [[Chisel.DecoupledIO]] flipped. */
+  val enq = Flipped(EnqIO(gen))
+  /** I/O to dequeue data (client is consumer and Queue object is producer), is [[Chisel.DecoupledIO]]*/
+  val deq = Flipped(DeqIO(gen))
+  /** The current amount of data in the queue */
+  val count = Output(UInt(log2Ceil(entries + 1).W))
+}
+```
+
+```scala
+/** An I/O Bundle for Queues
+  * @param gen The type of data to queue
+  * @param entries The max number of entries in the queue.
+  */
+class QueueIO[T <: Data](private val gen: T, val entries: Int) extends Bundle
+{ // See github.com/freechipsproject/chisel3/issues/765 for why gen is a private val and proposed replacement APIs.
+
+  /* These may look inverted, because the names (enq/deq) are from the perspective of the client,
+   *  but internally, the queue implementation itself sits on the other side
+   *  of the interface so uses the flipped instance.
+   */
+  /** I/O to enqueue data (client is producer, and Queue object is consumer), is [[Chisel.DecoupledIO]] flipped. */
+  val enq = Flipped(EnqIO(gen))
+  /** I/O to dequeue data (client is consumer and Queue object is producer), is [[Chisel.DecoupledIO]]*/
+  val deq = Flipped(DeqIO(gen))
+  /** The current amount of data in the queue */
+  val count = Output(UInt(log2Ceil(entries + 1).W))
+}
+
+/** A hardware module implementing a Queue
+  * @param gen The type of data to queue
+  * @param entries The max number of entries in the queue
+  * @param pipe True if a single entry queue can run at full throughput (like a pipeline). The ''ready'' signals are
+  * combinationally coupled.
+  * @param flow True if the inputs can be consumed on the same cycle (the inputs "flow" through the queue immediately).
+  * The ''valid'' signals are coupled.
+  *
+  * @example {{{
+  * val q = Module(new Queue(UInt(), 16))
+  * q.io.enq <> producer.io.out
+  * consumer.io.in <> q.io.deq
+  * }}}
+  */
+@chiselName
+class Queue[T <: Data](gen: T,
+                       val entries: Int,
+                       pipe: Boolean = false,
+                       flow: Boolean = false)
+                      (implicit compileOptions: chisel3.CompileOptions)
+    extends Module() {
+  require(entries > -1, "Queue must have non-negative number of entries")
+  require(entries != 0, "Use companion object Queue.apply for zero entries")
+  val genType = if (compileOptions.declaredTypeMustBeUnbound) {
+    requireIsChiselType(gen)
+    gen
+  } else {
+    if (DataMirror.internal.isSynthesizable(gen)) {
+      chiselTypeOf(gen)
+    } else {
+      gen
+    }
+  }
+
+  val io = IO(new QueueIO(genType, entries))
+  
+        // register
+  private val ram = Mem(entries, genType)
+  private val enq_ptr = Counter(entries)
+  private val deq_ptr = Counter(entries)
+  private val maybe_full = RegInit(false.B) // maybe_full的作用是在首位指针相同的时候判断是空还是满
+        
+	  // wire
+  private val ptr_match = enq_ptr.value === deq_ptr.value
+  private val empty = ptr_match && !maybe_full
+  private val full = ptr_match && maybe_full
+  private val do_enq = WireDefault(io.enq.fire())
+  private val do_deq = WireDefault(io.deq.fire())
+
+  when (do_enq) {
+    ram(enq_ptr.value) := io.enq.bits
+    enq_ptr.inc()
+  }
+  when (do_deq) {
+    deq_ptr.inc()
+  }
+  when (do_enq =/= do_deq) {
+    maybe_full := do_enq
+  }
+
+  io.deq.valid := !empty
+  io.enq.ready := !full
+  io.deq.bits := ram(deq_ptr.value)
+	// 对于空的情况直接过去
+  if (flow) {
+    when (io.enq.valid) { io.deq.valid := true.B }
+    when (empty) {
+      io.deq.bits := io.enq.bits
+      do_deq := false.B
+      when (io.deq.ready) { do_enq := false.B }
+    }
+  }
+	// 对于full的情况pipeline
+  if (pipe) {
+    when (io.deq.ready) { io.enq.ready := true.B }
+  }
+	// 计算队列内的元素个数, 当entries是2的方幂的时候, 组合逻辑可以简洁一点
+  private val ptr_diff = enq_ptr.value - deq_ptr.value
+  if (isPow2(entries)) {
+    io.count := Mux(maybe_full && ptr_match, entries.U, 0.U) | ptr_diff
+  } else {
+    io.count := Mux(ptr_match,
+                    Mux(maybe_full,
+                      entries.asUInt, 0.U),
+                    Mux(deq_ptr.value > enq_ptr.value,
+                      entries.asUInt + ptr_diff, ptr_diff))
+  }
+}
+```
 
 
 
-### Generate *Verilog* & *Firrtl*
+
+
+
+
+###  Generate *Verilog* & *Firrtl*
 
 - 分别用`getVerilog(<Module Instance>)` 
 
   
+
+## Reference
 
