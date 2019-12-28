@@ -905,6 +905,92 @@ Chisel提供了若干个常用的标准库, flow control方面的有`Decoupled`,
 
 #### Flow Control related
 
+`Decoupled(...)` 提供了经典的**valid-ready**数据输出模型, 分别有`vaild`, `ready`和`bits`三个字段, 如果需要数据输入模型则使用`Flipped(Decoupled(...))`
+
+`Queue` 可以创建一个两端decoupled的FIFO.
+
+一个Queue的例子是:
+
+```scala
+class MyQueue extends Module {
+    // Example circuit using a Queue
+    val io = IO(new Bundle {
+        val in = Flipped(Decoupled(UInt(8.W)))
+        val out = Decoupled(UInt(8.W))
+    })
+    val queue = Queue(io.in, 2)  // 2-element queue
+    io.out <> queue
+}
+```
+
+> **Bulk Connections**
+>
+> ​	`io.out <> queue` 实际上等价于
+>
+> ```scala
+> io.out.valid := queue.valid
+> io.out.bits := queue.bits
+> queue.ready := io.out.ready
+> ```
+
+`Arbiter` 可以解决单生产者多消费者, 或者多生成者, 单消费者的问题(flip一下即可), 根据arbiter的规则还分为低下标优先`Arbiter`和轮询`RRArbiter`.
+
+####  Function Blocks  
+
+提供了Bitwise Utilities, OneHot encoding utilities(在muxes中特别有用), 多选器Mux和计数器Count等.
+
+### Chisel Design Trick: functional programming
+
+#### Build-in Higher-Order Functions
+
+函数式编程的第一个技巧是使用higher-order functions高阶函数, 如zip, `zipWithchIndex`, map, reduce(对于空list可能失败, 还能指定结合方向`reduceLeft`, `reduceRight`), flod(与reduce类似, 但是可用指定初值,对于空list不会失败), scan(生成每一步的结果,生成列表list)这些都是Scala.List中的函数, 当然我们也可用自己指定高阶函数.
+
+关FIR Filter有一个一行解决的写法:
+
+```scala
+io.out := (taps zip io.consts).map { case (a, b) => a * b }.reduce(_ + _)
+```
+
+在这个例子中, 先讨论一下如何制定函数:
+
+- 对于需要unpack的元组, 需要先使用`case` statement.
+- 如果数组中每个元素只出现一次, 用下划线代替`_`
+- 详细指定参数用匿名函数, 如上面的`_+_`可用`(a,b) => a+b`代替
+
+这里用higher-order function的方法, 再次手写一个arbiter, 可用看到程序非常简洁:
+
+```scala
+class MyRoutingArbiter(numChannels: Int) extends Module {
+  val io = IO(new Bundle {
+    val in = Vec(numChannels, Flipped(Decoupled(UInt(8.W))))
+    val out = Decoupled(UInt(8.W))
+  } )
+    val Valids = io.in.map(_.valid)
+    io.out.valid := Valids.reduce(_ || _)
+    val selected = PriorityMux(Valids.zipWithIndex.map{case (valid, index) => (valid,index.U)})
+    io.out.bits := io.in(selected).bits
+    io.in.foreach(x => x.ready := 0.B)
+    io.in(selected).ready := io.in(selected).valid && io.out.ready
+}
+```
+
+利用函数式编程, 在Chisel中一个神经元的写法可以很简单:
+
+```scala
+class Neuron(inputs: Int, act: FixedPoint => FixedPoint) extends Module {
+  val io = IO(new Bundle {
+    val in      = Input(Vec(inputs, FixedPoint(16.W, 8.BP)))
+    val weights = Input(Vec(inputs, FixedPoint(16.W, 8.BP)))
+    val out     = Output(FixedPoint(16.W, 8.BP))
+  })
+  io.out := act(io.in.zip(io.weights).map{case (x, y) => x * y}.reduce(_ +& _))
+}
+```
+
+### Object Oriented Programming
+
+
+
 ### Generate *Verilog* & *Firrtl*
 
 - 分别用`getVerilog(<Module Instance>)` 
