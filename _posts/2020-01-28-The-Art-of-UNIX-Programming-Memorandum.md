@@ -7,11 +7,6 @@ title: The Art of UNIX Programming
 
 [TOC]
 
-[TOC]
-
-[TOC]
-
-[TOC]
 
 列举几个例子加以理解.
 

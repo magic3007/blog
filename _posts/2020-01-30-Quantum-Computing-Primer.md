@@ -1,7 +1,9 @@
 ---
-tags: [Notebooks, Quantum Computing]
-layout: article 
+tags: [Quantum Computing]
 title: Quantum Computing Primer
+layout: article
+mathjax: true
+mathjax_autoNumber: true
 created: '2020-01-30T11:50:31.879Z'
 modified: '2020-01-30T11:52:06.084Z'
 ---
@@ -46,7 +48,7 @@ $$
 $$
 该符号被称为*左矢(bar)*, 是因为这样可以非常美观地表示内积, 如内积$|\psi \rangle \cdot | \phi \rangle$可以写成$\langle \psi | \phi \rangle$. 当然, 自身与自身的内积可以得到模长$\langle \psi | \psi \rangle = |\alpha|^2 + |\beta|^2 \geq 0$.
 
-在量子计算中, 但是我们并不关心*全局相位*的大小, 即 $|\psi \rangle$和 $t|\psi \rangle (t \in \C)$被认为是一样的. 因此我们统一归一化规定
+在量子计算中, 但是我们并不关心*全局相位*的大小, 即 $|\psi \rangle$和 $t|\psi \rangle (t \in \mathbb{C})$被认为是一样的. 因此我们统一归一化规定
 $$
 |\alpha|^2 + |\beta|^2=1
 $$
@@ -60,7 +62,7 @@ e^{i\phi}\sin{\frac{\theta}{2}}\\
 $$
 之所以是这样表示, 是因为我们可以引入*Bloch球*表示量子比特, 而此时$\theta$和$\phi$在Bloch球有类似于极坐标的直观意义, 我们也可以看到此时 $|0\rangle$ 和 $|1\rangle$在Bloch球上的位置.
 
-![image-20200130213500077](./Quantum-Computing-Primer.assets/image-20200130213500077.png)
+![image-20200130213500077](Quantum-Computing-Primer.assets/image-20200130213500077.png)
 
 > 由于Bloch球只是一个直观意义, 有几个误区要指出:
 >
@@ -85,7 +87,7 @@ $$
 
 > 根据有限维的谱定理，必定存在着一个正交归一基，可以表达自伴算符为一个实值的对角矩阵.
 
-不妨设这组正交归一基为$\{|\psi_i\rangle\}$, 则$O$在该组基底下的矩阵表示为$diag\{\lambda_0, \lambda_2, \dots, \lambda_{n-1}\}(\lambda_i \in \R)$, 显然$\{\lambda_i\}$和$\{|\psi_i\rangle}\}$恰为本征值和本征态, 即$O|\psi_i \rangle = \lambda_i | \psi_i \rangle$.
+不妨设这组正交归一基为$\{|\psi_i\rangle\}$, 则$O$在该组基底下的矩阵表示为$diag\{\lambda_0, \lambda_2, \dots, \lambda_{n-1}\}(\lambda_i \in \R)$, 显然$\{\lambda_i\}$和$\{|\psi_i\rangle\}$恰为本征值和本征态, 即$O|\psi_i \rangle = \lambda_i | \psi_i \rangle$.
 
 假设一个量子态$|\psi\rangle$在这组基下表示为$|\phi \rangle = \sum\limits_{i=0}^{n-1}c_i|\psi_i\rangle$(对于单个量子比特$n=2$, 这里讨论一般情况, 后面引入多量子比特后会n增大), 由归一性易得$\sum\limits_{i}|c_i|^2=1$.
 
@@ -111,7 +113,7 @@ $$
 
 [To be continued...]
 
-## Deutsch-Jozsa Algorithm
+### Deutsch-Jozsa Algorithm
 
 ### Quantum Fourier Transform
 
