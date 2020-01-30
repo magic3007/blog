@@ -85,7 +85,7 @@ $$
 
 > 根据有限维的谱定理，必定存在着一个正交归一基，可以表达自伴算符为一个实值的对角矩阵.
 
-不妨设这组正交归一基为$\{|\psi_i\rangle\}$, 则$O$在该组基底下的矩阵表示为$diag\{\lambda_0, \lambda_2, \dots, \lambda_{n-1}\}(\lambda_i \in \R)$, 显然$\{\lambda_i\}$和$\{{|\psi_i\rangle}\}$恰为本征值和本征态, 即$O|\psi_i \rangle = \lambda_i | \psi_i \rangle$.
+不妨设这组正交归一基为$\{|\psi_i\rangle\}$, 则$O$在该组基底下的矩阵表示为$diag\{\lambda_0, \lambda_2, \dots, \lambda_{n-1}\}(\lambda_i \in \R)$, 显然$\{\lambda_i\}$和$\{|\psi_i\rangle}\}$恰为本征值和本征态, 即$O|\psi_i \rangle = \lambda_i | \psi_i \rangle$.
 
 假设一个量子态$|\psi\rangle$在这组基下表示为$|\phi \rangle = \sum\limits_{i=0}^{n-1}c_i|\psi_i\rangle$(对于单个量子比特$n=2$, 这里讨论一般情况, 后面引入多量子比特后会n增大), 由归一性易得$\sum\limits_{i}|c_i|^2=1$.
 
