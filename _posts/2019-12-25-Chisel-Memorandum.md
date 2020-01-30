@@ -1043,7 +1043,7 @@ Object Oriented Programming
 
 #### Example: Aynonymous FIFO & Asynchronous FIFO
 
-我们用面向对象的方法来实现一个asynchronous FIFO. 首先, 我们先看一下Chisel中的synonymous FIFO,即`Queue`的[源码](https://github.com/freechipsproject/chisel3/blob/master/src/main/scala/chisel3/util/Decoupled.scala)(不得不说, 感觉写得挺好的😀)
+我们用面向对象的方法来实现一个asynchronous FIFO. 首先, 我们先看一下Chisel中的synonymous FIFO,即`Queue`, 源代码见[此](https://github.com/freechipsproject/chisel3/blob/master/src/main/scala/chisel3/util/Decoupled.scala)(不得不说, 感觉写得挺好的😀)
 
 先是定义了两个decoupled的接口. 下面的`val enq = Flipped(EnqIO(gen))` 中需要Flipped的原因结合后面class `Queue`注释里面的exmaple比较容易理解.
 
