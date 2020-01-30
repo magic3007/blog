@@ -48,7 +48,7 @@ title: Effective C++ Memorandum
 
 
 
-# Constructors, Destructors & Assignment Operations
+# Constructors, Destructors & Assignment
 
 ## Disallow default copy & assign
 
@@ -87,6 +87,46 @@ class A{
     	bool closed;
 };
 ```
+
+## Resrouce Management
+
+常见的资源包括内存, 文件描述符, 锁等
+
+对于内存资源, 我们可以用**智能指针管理**.
+
+利用类的构造和析构函数, 我们也可以做一些资源管理. 比如对于static变量, 我们把资源的获取放在构造函数里面做, 这样只有第一次访问该变量的时候才会调用构造函数从而获取资源. 又例如对于文件描述符, 锁等在一个作用域内有效的, 我们可以利用把资源的释放分别放在一个类的析构函数内做, 当然这个函数可以是匿名函数. 
+
+```c++
+class DeferredAction {
+ public:
+  DISALLOW_COPY_AND_ASSIGN(DeferredAction)
+
+  explicit DeferredAction(std::function<void(void)> f)
+    : f_(std::move(f)) {}
+
+  inline ~DeferredAction() {
+    f_();
+  }
+
+ private:
+  std::function<void(void)> f_;
+};
+```
+
+如果某实例不一定在一个作用域内有效, 可以通过复制, 赋值等方式传递, 我们可以利用`std::shared_ptr`的`deleter`, 注意下面这个例子不需要析构函数.
+
+```c++
+class LockGuard {
+ public:
+   explicit LockGuard(Mutex *pm): mutex_ptr(pm, unlock) {
+    	lock(mutex_ptr.get());
+   }
+ private:
+    std::shared_ptr<Mutex> mutex_ptr;
+};
+```
+
+当然为了让用户尽可能使用智能指针等模式, 可以采用**工厂模式**"先发制人", 返回一个智能指针, 甚至可以规定deleter.
 
 
 
