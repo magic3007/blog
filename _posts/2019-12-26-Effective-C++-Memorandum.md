@@ -1,9 +1,18 @@
 ---
-layout: article 
+layout: article
+tag: [C++]
 title: Effective C++ Memorandum
 ---
 
 [TOC]
+
+# Reference
+
+[Effective C++: 55 Specific Ways to Improve Your Programs and Designs (3rd Edition)](https://www.amazon.com/Effective-Specific-Improve-Programs-Designs/dp/0321334876)
+
+[Effective Modern C++: 42 Specific Ways to Improve Your Use of C++11 and C++14](https://www.amazon.com/Effective-Modern-Specific-Ways-Improve/dp/1491903996)
+
+
 
 > 为了充分利用C++的特性, 如何看待今天的C++的编程范式?
 
@@ -130,6 +139,5 @@ class LockGuard {
 
 
 
-# Reference
 
-[Effective C++: 55 Specific Ways to Improve Your Programs and Designs (3rd Edition)](https://www.amazon.com/Effective-Specific-Improve-Programs-Designs/dp/0321334876 )
+
