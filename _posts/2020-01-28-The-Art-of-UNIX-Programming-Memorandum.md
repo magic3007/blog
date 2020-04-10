@@ -107,6 +107,87 @@ Tag: [UNIX]
 
 
 
+## Configuration
+
+**configuration location**
+
+- `etc` -> system environment variables -> dot files under `$HOME` -> user environment variables -> command-line options
+- the latter covers the former
+
+
+
+**command-line option style**
+
+- UNIX Style: `-ab`=`-ba` `-j8`(whether is delimited by space is optional)
+
+- GNU Style:  `--arch amd64` `--arch=amd64`
+
+  
+
+**common meanings of command-line options**(`-a` - `-z`):
+
+| option | common meanings                           |
+| ------ | ----------------------------------------- |
+| -a     | all; append                               |
+| -b     | buffer, block(`du`, `df`); batch          |
+| -c     | command(`sh`); check                      |
+| -d     | debug; directory; delete                  |
+| -D     | define(define macro in `gcc`)             |
+| -h     | header; help                              |
+| -i     | interactive; initialize                   |
+| -I     | include(`gcc`)                            |
+| -k     | keep                                      |
+| -l     | list; load(`gcc`)                         |
+| -m     | message                                   |
+| -n     | number(with parameters)                   |
+| -o     | output(with parameters)                   |
+| -p     | port; protocol                            |
+| -q     | quite                                     |
+| -r/-R  | recurse; reverse                          |
+| -s     | silent; size                              |
+| -t     | tag(with parameters)                      |
+| -u     | user                                      |
+| -v     | verbose; version                          |
+| -V     | version                                   |
+| -w     | width; warning                            |
+| -x     | debug(similar to `-d`); extract           |
+| -y     | yes(allow potential destructive behavior) |
+| -z     | compress(`tar`, `zip`)                    |
+
+
+
+## Language
+
+| Language                   | Pros                                                         | Cons                                     | Portability                                                  |
+| -------------------------- | ------------------------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------ |
+| C                          | efficiency; portability                                      | resource/memory management               | poor support for IPC, threads and GUI                        |
+| C++                        | OO; generic programming; STL; opensource library available online | complicated OO; cons of C are not solved | ! no C++ compiler completely achieve C++99 ISO standard nowadays |
+| shell                      | small script                                                 |                                          | pure shell script is portable; however, there are always 3rd commands or filters in shell scripts |
+| perl                       | enhanced shell; regex expression                             |                                          | not bad except for some plug-ins from CPAN                   |
+| tcl(tool command language) |                                                              |                                          |                                                              |
+| Python                     | legible                                                      | poor efficiency                          | brilliant except for the the updating gap between Python2 and Python3 |
+| Java                       | OO; JVM                                                      |                                          | brilliant                                                    |
+
+
+
+## Open Source
+
+*Ensure the archived file is always extracted to a new directory instead of current directory.*
+
+A trick in `makefile` to compress all the files under a directory.
+
+```makefile
+foobar-$(VERS).tar.gz:
+	@find $(SRC) -type f | sed s:^:foobar-$(VERS)/: >MANIFEST
+	@(cd ..; ln -s foobar foobar-$(VERS))
+	(cd ..; tar -czvf foobar/foobar-$(VERS).tar.gz `cat foobar/MANIFEST`)
+	@(cd ..; rm foobar-$(VERS))
+```
+
+See more info in: http://en.tldp.org/HOWTO/Software-Release-Practice-HOWTO/distpractice.html
+
+
+
 # Reference
 
 [The Art of Unix Programming](http://www.catb.org/~esr/writings/taoup/html/)
