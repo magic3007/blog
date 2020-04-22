@@ -90,7 +90,7 @@ $$
 
 ### Qubit Measurement
 
-在物理上, 任意一次测量都可以看作一个自伴算符$$O$$, 即满足$$O^{\dagger}= O$$. 特别地, 如果$$\lambda$$和$$\vert\psi \rangle$$满足 $$O \vert \psi \rangle = \lambda \vert \psi \rangle$$, 则$$\lambda$$和$$\vert\psi \rangle$$分别称为*本征值*和*本征态*. 一次测量结果只能是本征植中一个, 且测量后量子态会坍塌到对应的的本征态.
+在物理上, 任意一次测量都可以看作一个自伴算符$$O$$, 即满足$$O^{\dagger}= O$$. 特别地, 如果$$\lambda$$和$$\vert\psi \rangle$$满足 $$O \vert \psi \rangle = \lambda \vert \psi \rangle$$, 则$$\lambda$$和$$\vert\psi \rangle$$分别称为*本征值*和*本征态*. 一次测量结果只能是本征值中一个, 且测量后量子态会坍塌到对应的的本征态.
 
 关于自伴算符, 有如下的定理:
 
@@ -100,7 +100,7 @@ $$
 
 假设一个量子态$$\vert\psi\rangle$$在这组基下表示为$$\vert\phi \rangle = \sum\limits_{i=0}^{n-1}c_i\vert\psi_i\rangle$$(对于单个量子比特$$n=2$$, 这里讨论一般情况, 后面引入多量子比特后会n增大), 由归一性易得$$\sum\limits_{i}\vert c_i\vert^2=1$$.
 
-对该量子态进行测量相当于进行一次投影. 实际上, 通过计算$$\langle \phi \vert O \vert \phi \rangle$$, 我们可以求得得到各个本征值的概率和期望值:
+对该量子态进行测量相当于进行一次投影. 实际上, 通过计算$$\langle \phi \vert O \vert \phi \rangle$$, 我们可以求得期望值:
 
 $$
 \begin{aligned}
@@ -113,7 +113,17 @@ $$
 \end{aligned}
 $$
 
-故测量得到本征值$$\lambda_i$$的概率为$$\vert c_i\vert^2$$, 期望值为$$\sum\limits_{i}\vert c_i\vert^2\lambda_i$$.
+其中本征值$$\lambda_i$$的概率为$$\vert c_i\vert^2$$, 期望值为$$\sum\limits_{i}\vert c_i\vert^2\lambda_i$$.
+
+同理, 我们可以得到某个本征态$\vert \phi_i \rangle$出现的概率
+$$
+\begin{align}
+\vert \langle \psi_i \vert \phi \rangle \vert^2
+&= \vert \langle \psi_i \vert (\sum_k c_k \vert \psi_k \rangle) \vert^2\\
+&= \vert c_i \langle \psi_i \vert \psi_i \rangle \vert^2 \\
+&= \vert c_i\vert^2
+\end{align}
+$$
 
 ### Single Quantum Gate
 
