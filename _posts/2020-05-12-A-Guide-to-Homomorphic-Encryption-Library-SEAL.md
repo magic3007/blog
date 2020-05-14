@@ -161,6 +161,7 @@ ct &\leftarrow (pk_0u+e_0+\frac{Qm}{t}, pk_1u+e_1) \in R_Q^2
 $$
 
 {% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448487881.png" alt="1589448487881" %} 
+
 Decryption: 
 
 $$
@@ -168,7 +169,7 @@ $$
 $$
 
 
-Noise in $\left[c t_{0}+c t_{1} s\right]_{Q}=\left[\frac{Q m}{t}+e_{1}+e u+e_{2} s\right]_{Q}$ can be considered Gaussian.
+Noise in $$\left[c t_{0}+c t_{1} s\right]_{Q}=\left[\frac{Q m}{t}+e_{1}+e u+e_{2} s\right]_{Q}$$ can be considered Gaussian.
 
 {% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448829024.png" alt="1589448829024" %} 
 
@@ -188,7 +189,9 @@ Also, you can always choose parameters according to homomorphic encryption secur
 
 #### Full-RNS Variants
 
-RNS refers to Residue Number System, which is similar to Chinese Remainder Theorem(CRT). Basically, you can represent a large integer with a set of smaller integers. {% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589465836455.png" alt="1589465836455" %} \
+RNS refers to Residue Number System, which is similar to Chinese Remainder Theorem(CRT). Basically, you can represent a large integer with a set of smaller integers. 
+
+{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589465836455.png" alt="1589465836455" %}
 
 {% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589465868771.png" alt="1589465868771" %} 
 
