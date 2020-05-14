@@ -149,8 +149,8 @@ Also, we can use this as the public key $pk \leftarrow (-as+e, a) \in R_Q^2$. Fo
 
 $$
 \begin{align}
-e &\leftarrow \sigma \\
-a &\leftarrow R_Q \\
+e_0,e_1 &\leftarrow \sigma \\
+u &\leftarrow ternary\ polynomial \\
 ct &\leftarrow (pk_0u+e_0, pk_1u+e_1) \in R_Q^2
 \end{align}
 $$
@@ -159,8 +159,8 @@ To encrypt a plaintext $m$, add plaintext to $ct_0$ with some modification:
 
 $$
 \begin{align}
-e &\leftarrow \sigma \\
-a &\leftarrow R_Q \\
+e_0,e_1 &\leftarrow \sigma \\
+u &\leftarrow ternary\ polynomial \\
 ct &\leftarrow (pk_0u+e_0+\frac{Qm}{t}, pk_1u+e_1) \in R_Q^2
 \end{align}
 $$
