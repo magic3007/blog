@@ -4,7 +4,7 @@
 
 ## Resource
 
-- [Intro to Homomorphic Encryption](https://www.youtube.com/watch?v=SEBdYXxijSo), Credit to [Microsoft Research](https://www.youtube.com/channel/UCCb9_Kn8F_Opb3UCGm-lILQ)
+- [Intro to Homomorphic Encryption](https://www.youtube.com/watch?v=SEBdYXxijSo), _Credit to [Microsoft Research](https://www.youtube.com/channel/UCCb9_Kn8F_Opb3UCGm-lILQ)_
 
 ## Overview
 
@@ -47,13 +47,13 @@ Addition and multiplication are preserved in all three forms(message, plaintext 
 Since we have two ciphertexts, we just simply add each polynomials together.
 
 $$
-(c_0, c_1) = (a_0+b_0, a_1+b+1) \% q
+(c_0, c_1) = (a_0+b_0, a_1+b_1) \% q
 $$
 
 In the case when $b$ is a plaintext, you just add $b$ to the first part
 
 $$
-(c0, c_1) =(a_0+b, a_1) \%q
+(c_0, c_1) =(a_0+b, a_1) \% q
 $$
 
 The time complexity is $O(n)$ in terms of integer add mod $Q$. The noise’s variance grows $O(n^{0.5})$ in terms of number of homomorphic addition, and the noise budget is shrunken by 1 bit.
@@ -69,13 +69,13 @@ $$
 In the case when $b$ is a plaintext, you just multiply $b$ to both parts:
 
 $$
-(c_0, c+1) = (a_0b, a_1b) \% q
+(c_0, c_1) = (a_0b, a_1b) \% q
 $$
 
 And The decryption requires
 
 $$
-[ct_0 + ct_1s + ct_2 s^2]q
+[ct_0 + ct_1s + ct_2 s^2]_{q}
 $$
 
 where $s$ is the private key.
