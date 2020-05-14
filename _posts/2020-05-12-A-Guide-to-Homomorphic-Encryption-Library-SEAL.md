@@ -1,6 +1,11 @@
+---
+tags: [Homomorphic Encryption]
+title: A Guide to Homomorphic Encryption Library SEAL
+---
+
+
 # A Guide to Homomorphic Encryption Library SEAL
 
-[TOC]
 
 ## Resource
 
