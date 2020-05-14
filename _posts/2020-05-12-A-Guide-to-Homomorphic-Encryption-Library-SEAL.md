@@ -4,7 +4,7 @@
 
 ## Resource
 
-- [Intro to Homomorphic Encryption](https://www.youtube.com/watch?v=SEBdYXxijSo)(Credit to [Microsoft Research](https://www.youtube.com/channel/UCCb9_Kn8F_Opb3UCGm-lILQ))
+- [Intro to Homomorphic Encryption](https://www.youtube.com/watch?v=SEBdYXxijSo), Credit to [Microsoft Research](https://www.youtube.com/channel/UCCb9_Kn8F_Opb3UCGm-lILQ)
 
 ## Overview
 
@@ -169,7 +169,8 @@ $$
 $$
 
 
-Noise in $$\left[c t_{0}+c t_{1} s\right]_{Q}=\left[\frac{Q m}{t}+e_{1}+e u+e_{2} s\right]_{Q}$$ can be considered Gaussian.
+Noise in decryption can be considered Gaussian.
+
 
 {% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448829024.png" alt="1589448829024" %} 
 
@@ -181,11 +182,11 @@ Usually we require some attempts to find the proper $Q$. The best way is just st
 
 Notice that the larger the $Q$ is, the less secure the scheme is. So after you have decide the Q, you need to increase $n$.
 
-Also, you can always choose parameters according to homomorphic encryption security standard at [www.homomorphicencryption.org]( https://homomorphicencryption.org/ ).
+Also, you can always choose parameters according to homomorphic encryption security standard at [www.homomorphicencryption.org]( https://homomorphicencryption.org/).
 
 {% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589449368171.png" alt="1589449368171" %} 
 
-<img src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589449416926.png" alt="1589449416926" style="zoom: 67%;">
+{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589449416926.png" alt="1589449416926" %}
 
 #### Full-RNS Variants
 
