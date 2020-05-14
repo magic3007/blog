@@ -27,7 +27,7 @@ modified: '2020-03-04T09:23:05.567Z'
 - [fasd](https://github.com/clvv/fasd): offers quick access to files and directories, inspired by autojump, z and v
 - [Environment Modules](https://modules.readthedocs.io/en/latest/): dynamic modification of a user's environment via modulefile
 - [mosh](https://github.com/mobile-shell/mosh): Mobile Shell  
-
+- [showterm](http://showterm.io/): demoing instructions by sharing urls
 
 
 ### painting
@@ -47,7 +47,7 @@ modified: '2020-03-04T09:23:05.567Z'
 ### document
 
 - [Doxygen](http://www.doxygen.nl/): the de facto standard tool for generating documentation from annotated source code.
-
+- [mkdocs](https://www.mkdocs.org/): a fast, simple and downright gorgeous static site generator that's geared towards building project documentation.
 
 
 ### Potpourri
