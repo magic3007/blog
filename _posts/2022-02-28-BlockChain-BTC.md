@@ -1,3 +1,9 @@
+---
+layout: article
+title: BlockChain BTC
+mathjax: true
+---
+
 最近被同学蛊惑了区块链, 于是看一些关于北京大学肖臻老师的[《区块链技术与应用》](https://www.bilibili.com/video/BV1Vt411X7JF)这门课. 肖老师讲得挺好, 这里记录一些BTC部分的笔记, 如果感觉笔记格式笔记乱的话可以看原版[notion](https://magic3007.notion.site/BlockChain-BTC-3d0a736d49b24357871f428224fb41ca)的笔记.
 # BTC协议
 
