@@ -21,6 +21,7 @@ header:
       fr-CH   : *FR
       fr-FR   : *FR
       fr-LU   : *FR
+      tr      : &TR       Arşivdekiler
       # @end locale config
     url: /archive.html
 
@@ -40,11 +41,12 @@ header:
       zh-HK   : *ZH_HANT
       ko      : &KO       소개
       ko-KR   : *KO
-      fr      : &KO       À propos
+      fr      : &FR       À propos
       fr-BE   : *FR
       fr-CA   : *FR
       fr-CH   : *FR
       fr-FR   : *FR
       fr-LU   : *FR
+      tr      : &TR       Hakkında
       # @end locale config
     url: /about.html
