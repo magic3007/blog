@@ -26,7 +26,7 @@ titles:
 key: page-about
 ---
 
-I am a first-year Ph.D. student in the Department of Computer Science at Peking University associated with the [Center for Energy-Efficient Computing and Applications (CECA)](https://ceca.pku.edu.cn/).
+I am a second-year Ph.D. student in the Department of Computer Science at Peking University associated with the [Center for Energy-Efficient Computing and Applications (CECA)](https://ceca.pku.edu.cn/).
 I am a member of the **PKU-IDEA Lab**, advised by [Prof. Yibo Lin](https://yibolin.com/).
 Previously, I received the B.S. degree in Computer Science and Technology from Peking University in 2021.
 My research interests include machine learning-assisted EDA, MLSys, and probabilistic modeling.

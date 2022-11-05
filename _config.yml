@@ -45,7 +45,7 @@ author:
   weibo     : # "user_id"   the last part of your profile url, e.g. https://www.weibo.com/user_id/profile?...
   googleplus: # "user_id"   the last part of your profile url, e.g. https://plus.google.com/u/0/user_id
   telegram  : MagicMai # "user_name" the last part of your profile url, e.g. https://t.me/user_name
-  medium    : "@Magic3007Mai" # "user_name" the last part of your profile url, e.g. https://medium.com/user_name
+  medium    : "@maijing3007" # "user_name" the last part of your profile url, e.g. https://medium.com/user_name
   zhihu     : magic3007 # "user_name" the last part of your profile url, e.g. https://www.zhihu.com/people/user_name
   douban    : # "user_name" the last part of your profile url, e.g. https://www.douban.com/people/user_name
   linkedin  : # "user_name" the last part of your profile url, e.g. https://www.linkedin.com/in/user_name
