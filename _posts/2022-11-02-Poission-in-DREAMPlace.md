@@ -288,6 +288,7 @@ $$
 &\xi_{x,y}^Y=\operatorname{IDCT}\left(\operatorname{IDXST}\left(\left\{\frac{a_{u, v} w_v}{w_u^2+w_v^2}\right\}\right)^T\right)^T
 \end{aligned}
 $$
+
 这里经历的过程无非就是重排->FFT->频域上的运算->IFFT->重拍。我们可以每个维度单独做FFT/IFFT，也可以两个维度一起重排，然后做FFT2/IFFT2。这两者时间复杂度一样，但是后者的参数可能更小一些。
 
 对于三维甚至以上的情况也是一样的，读者可自行拓展。
