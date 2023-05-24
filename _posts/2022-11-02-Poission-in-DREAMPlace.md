@@ -1,13 +1,7 @@
----
-layout: article
-title: 讨论DREAMPlace中的静电场求解算法
-mathjax: true
-tag: [EDA]
----
+#!https://zhuanlan.zhihu.com/p/579688074
+# 讨论DREAMPlace中的静电场求解算法
 
-<!-- #!https://zhuanlan.zhihu.com/p/579688074
-# 讨论DREAMPlace中的静电场求解算法 -->
-
+> 由于知乎上部分markdown语法转化过程出现了错误，本文中的部分公式和引用可能无法正常显示，建议在[Magic Mai's Blog: 讨论DREAMPlace中的静电场求解算法](https://magic3007.github.io/blog/2022/11/02/Poission-in-DREAMPlace.html)上阅读。
 ## 问题描述
 
 在[DREAMPlace (Yibo Lin, DAC'19)](https://dl.acm.org/doi/10.1145/3316781.3317803)这篇文章中，作者将器件近似类比为带电体，建立了静电场模型作为器件的密度模型，并使用了谱方法来求解静电场。当前，基于静电场系统的全局布局算法在学术界布局算法中获得了SOTA的性能和效率，其中关于如何高效计算静电场的电场强度和电势能在论文里面只是进行了简单的描述。最近组里来的本科实习生在研究这方面的算法，这里稍微写点东西讨论一下。
@@ -46,16 +40,7 @@ $$
 
 
 
-傅立叶谱方法是求解此类偏微分方程的一种重要的数值方法，其主要包括傅立叶变换，余弦变换和正弦变换。一般来说，不同的变换方式适合不同的边界条件：
-
-
-|  变换方式  |            边界条件            |
-| :--------: | :----------------------------: |
-| 傅立叶变换 |  periodic: $\psi(0)=\psi(L)$   |
-|  余弦变换  | no-flux: $\psi'(0)=\psi'(L)=0$ |
-|  正弦变换  |  pinned: $\psi(0)=\psi(L)=0$   |
-
-这里的Neumann边界条件属于no-flux的边界条件，因此我们考虑使用离散余弦变换（DCT）来求解。
+傅立叶谱方法是求解此类偏微分方程的一种重要的数值方法，其主要包括傅立叶变换，余弦变换和正弦变换。一般来说，不同的变换方式适合不同的边界条件。这里的Neumann边界条件属于no-flux的边界条件，因此我们考虑使用离散余弦变换（DCT）来求解。
 
 ### 离散余弦变换DCT及其逆变换[^5]
 
@@ -297,7 +282,11 @@ $$
 
 
 [^1]: [四类边界条件下静电场唯一性定理的讨论](https://zhuanlan.zhihu.com/p/410633814)
+
 [^2]: [详解离散余弦变换（DCT）](https://zhuanlan.zhihu.com/p/85299446)
+
 [^3]: [离散余弦变换 - 维基百科](https://zh.wikipedia.org/wiki/%E7%A6%BB%E6%95%A3%E4%BD%99%E5%BC%A6%E5%8F%98%E6%8D%A2)
+
 [^4]: [埃尔米特矩阵 - 维基百科](https://zh.wikipedia.org/wiki/%E5%9F%83%E5%B0%94%E7%B1%B3%E7%89%B9%E7%9F%A9%E9%98%B5) 
+
 [^5]: [A Fast Cosine Transform in One and Two Dimensions](https://ieeexplore.ieee.org/document/1163351)
