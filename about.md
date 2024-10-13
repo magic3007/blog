@@ -53,3 +53,8 @@ For more info, please visit [my personal website](https://magic3007.github.io/).
 - [Bo Liang](https://galaxywalk.github.io/)
 - [Kexing Zhou](https://keke046.github.io)
 - [Yufan Du](https://yufandu.com)
+
+### Conference Calendar | 会议日历
+
+- [Architecture & System Deadlines](https://casys-kaist.github.io/?sub=ARCH,SYS,ML,OTHER,TBD)
+- [CCF Rec. Conference Deadlines](https://ccfddl.github.io)
