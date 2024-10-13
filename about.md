@@ -52,3 +52,4 @@ For more info, please visit [my personal website](https://magic3007.github.io/).
 - [Kenuo Xu](https://witty-me.github.io/)
 - [Bo Liang](https://galaxywalk.github.io/)
 - [Kexing Zhou](https://keke046.github.io)
+- [Yufan Du](https://yufandu.com)
