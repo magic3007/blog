@@ -59,3 +59,4 @@ For more info, please visit [my personal website](https://magic3007.github.io/).
 - [Architecture & System Deadlines](https://casys-kaist.github.io/?sub=ARCH,SYS,ML,OTHER,TBD)
 - [CCF Rec. Conference Deadlines](https://ccfddl.github.io)
 - [Paper Copilot](https://papercopilot.com)
+- [Papers Cool](https://papers.cool) designed by [Jianlin Su](https://kexue.fm)
