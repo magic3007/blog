@@ -48,7 +48,7 @@ For more info, please visit [my personal website](https://magic3007.github.io/).
 - [Yinlin Deng](https://dengyinlin.github.io/)
 - [Yaowei Long](https://longyaowei.github.io/)
 - [Chen Gong](https://gcc17.github.io/)
-- [Renze Chen](https://www.zhihu.com/people/yi-guang-99-48)
+- [Renze Chen](https://light-of-hers.github.io)
 - [Kenuo Xu](https://witty-me.github.io/)
 - [Bo Liang](https://galaxywalk.github.io/)
 - [Kexing Zhou](https://keke046.github.io)
