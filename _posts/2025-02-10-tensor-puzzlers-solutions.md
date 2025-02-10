@@ -6,8 +6,6 @@ categories: [Programming, Machine Learning]
 tags: [pytorch, numpy, tensor, programming-challenges]
 ---
 
-# Solutions to Tensor Puzzlers: A Deep Dive into Tensor Operations
-
 This article presents my solutions to [Sasha Rush's Tensor Puzzles](https://github.com/srush/Tensor-Puzzles), a collection of challenging tensor manipulation problems. These solutions serve as an excellent reference for understanding fundamental tensor operations and their creative applications.
 
 ## Foundation: Essential Operations
