@@ -1,6 +1,6 @@
 ---
-layout: article 
-title: Chisel Memorandum 
+layout: article
+title: Chisel Memorandum
 ---
 
 最近看了一下[**Chisel Bootcamp**](https://mybinder.org/v2/gh/freechipsproject/chisel-bootcamp/master)，这里记录一下心得体会.
@@ -9,14 +9,14 @@ title: Chisel Memorandum
 
 ## Scala Primer
 
-Chisel是一种基于Scala的高层次硬件描述语言. 而Scala的设计哲学即为集成面向对象编程和函数式编程, 非常适合用来作为硬件描述语言. Scala 运行在Java虚拟机上, 并兼容现有的Java程序. 作为基础我们必须先了解一些Scala的一些语法以及编程特性. 
+Chisel是一种基于Scala的高层次硬件描述语言. 而Scala的设计哲学即为集成面向对象编程和函数式编程, 非常适合用来作为硬件描述语言. Scala 运行在Java虚拟机上, 并兼容现有的Java程序. 作为基础我们必须先了解一些Scala的一些语法以及编程特性.
 
 Scala一门面向对象语言, 可以认为Scala程序是`Object`对象的集合. 顺便复习一下下面几个概念的关系:
 
 - Object对象: 对象是类的实例
 - Class类: 类是对象的抽象
 - Method方法: 一个类可以包括多个方法
-- Field字段: 每个对象都有其唯一的实例化的变量集合, 即字段. 
+- Field字段: 每个对象都有其唯一的实例化的变量集合, 即字段.
 
 ### Naming Specifications
 
@@ -36,7 +36,7 @@ class HelloWorld
 
 // Method two
 package com.runoob {
-  class HelloWorld 
+  class HelloWorld
 }
 ```
 
@@ -57,7 +57,7 @@ Scala的常用数据类型见[此](https://www.tutorialspoint.com/scala/scala_qu
 
 - `Any`:  Scala中所有类的基类
 
-- `AnyRef`: Scala中所有引用类reference class的基类 
+- `AnyRef`: Scala中所有引用类reference class的基类
 
 注意在Scala中数据类型也都是对象, Scala并没有类似于java的原生类型, 因此在Scala中对一个基本数字变量可以调用方法.
 
@@ -77,7 +77,7 @@ Scala的条件变量与C/C++, Java等类似, 同时`if`语句也有类似于C/C+
 val alphabet = "abcdefghijklmnopqrstuvwxyz"
 val likelyCharactersSet = if (alphabet.length == 26)
     "english"
-else 
+else
     "not english"
 println(likelyCharactersSet)
 ```
@@ -182,7 +182,7 @@ for (var x <- list
 ```scala
 val numList = List(1,2,3,4,5,6,7,8,9,10);
 
-var retVal = for{ a <- numList 
+var retVal = for{ a <- numList
                 if a != 3; if a < 8
               }yield a
 
@@ -202,8 +202,8 @@ Scala的函数Functions的定义形式如下. 注意几个要点
 - Scala指定传参的时候乱序指定参数名
 
 ```scala
-def <function name>(<parameter name> : <type> [ = <InitialValue> ] [, ...]): [return type] = { 
-	... 
+def <function name>(<parameter name> : <type> [ = <InitialValue> ] [, ...]): [return type] = {
+	...
 }
 ```
 如果函数没有返回值, 可以返回`Unit`, 类似于Java的`void`:
@@ -218,10 +218,10 @@ def printMe( ) : Unit = {
 
 ```scala
 def asciiTriangle(rows: Int) {
-    
+
     // This is cute: multiplying "X" makes a string with many copies of "X"
     def printRow(columns: Int): Unit = println("X" * columns)
-    
+
     if(rows > 0) {
         printRow(rows)
         asciiTriangle(rows - 1) // Here is the recursive call
@@ -338,7 +338,7 @@ def add(x:Int,y:Int)=x+y
 def add(x:Int)=(y:Int)=>x+y // function currying
 
 
-val result = add(1) 
+val result = add(1)
 val sum = result(2)
 println(sum) // 3
 ```
@@ -348,11 +348,11 @@ println(sum) // 3
 类似Python, Scala也可以定义闭包, 一个函数的返回值依赖于一个外部的自由变量.
 
 ```scala
-def main(args: Array[String]) {  
-      println( "muliplier(1) value = " +  multiplier(1) )  
-      println( "muliplier(2) value = " +  multiplier(2) )  
-   }  
-var factor = 3  
+def main(args: Array[String]) {
+      println( "muliplier(1) value = " +  multiplier(1) )
+      println( "muliplier(2) value = " +  multiplier(2) )
+   }
+var factor = 3
 val multiplier = (i:Int) => i * factor
 ```
 
@@ -369,7 +369,7 @@ class MyBundle extends Bundle {
 
 Scala中关于面向对象编程有几个特殊概念需要注意, 分别是abstract class抽象类, trait特征(相当于java的接口, 与抽象类类似, 但是没有构造参数, 可被多重继承), object单例对象, companion object伴生对象和companion class伴生类, case class样例类 以及anonymous class匿名类.
 
-Scala的类通过`new`创建对象, 或者后面我们可以看到也可以通过伴生对象的来创建. 
+Scala的类通过`new`创建对象, 或者后面我们可以看到也可以通过伴生对象的来创建.
 
 Scala通过`extend`关键字继承类, 重新定义非抽象字段需要使用`overwrite`, 同时Scala不支持多重继承类, 但是trait是一个例外, 一个class可以继承多个trait. trait的多重继承如下
 
@@ -394,7 +394,7 @@ I'M AN OBJECT!
 */
 ```
 
-伴生对象和伴生类在Scala中非常重要. 之前说过, Scala中的`Int`, `List`等不是原生数据类型, 是一个对象. 其实这个说法不同准确, 实际上Scala中`UInt`, `List`等, 既是一个类名, 也是一个(单例)对象名, 它们两个互为伴生类和伴生对象. 伴生对象的用处在于: 
+伴生对象和伴生类在Scala中非常重要. 之前说过, Scala中的`Int`, `List`等不是原生数据类型, 是一个对象. 其实这个说法不同准确, 实际上Scala中`UInt`, `List`等, 既是一个类名, 也是一个(单例)对象名, 它们两个互为伴生类和伴生对象. 伴生对象的用处在于:
 
 1. 定义伴生类中常量
 2. 为伴生类定义多个构造函数(通过`apply`statement), 同时允许在调用类构造函数前后执行某些操作
@@ -453,7 +453,7 @@ val my_bundle = new Bundle {
 - 生成一个指定重复数量的元素列表用`List.fill[A](n: Int)(elem: => A): LazyList[A]`
 - 通过给定函数来生成列表用`List.tabulate`
 - 反转列表用`List.reverse`
-- 取前若干个元素用`def take(n: Int): List[A]` 
+- 取前若干个元素用`def take(n: Int): List[A]`
 
 #### Map
 
@@ -518,7 +518,7 @@ println(getVerilog(new DelayBy1(Some(3.U))))
 
 ### Generic
 
-Scala中, 我们可以在定义class和生成实例的时候指定泛型, 
+Scala中, 我们可以在定义class和生成实例的时候指定泛型,
 
 ```scala
 class Stack[A] {
@@ -593,13 +593,13 @@ val lionContainer = new PetContainer[Lion](new Lion)
   val obj2 = new ParameterizedScalaObject(4 + 2, "World")
   ```
 
-  
+
 
 ## Chisel Primer
 
 ### Chisel Model
 
-Chisel建立在Scala之上, 一个chisel model实际是一个继承一个被称为`Module`的`Scala object`, 其定义了`reset`, `clock`等硬件单元的基本接线. 需要时刻记住的是, Chisel毕竟是一门硬件描述语言, 我们需要时刻注意`Scala Object`与`Chisel Object`的区别与联系. 下面定义了一个简单的`Chisel Object`. 
+Chisel建立在Scala之上, 一个chisel model实际是一个继承一个被称为`Module`的`Scala object`, 其定义了`reset`, `clock`等硬件单元的基本接线. 需要时刻记住的是, Chisel毕竟是一门硬件描述语言, 我们需要时刻注意`Scala Object`与`Chisel Object`的区别与联系. 下面定义了一个简单的`Chisel Object`.
 
 ```scala
 // Chisel Code: Declare a new module definition
@@ -637,7 +637,7 @@ class Passthrough extends Module {
 
 - `+` 不会考虑进位, 考虑进位需要用到 `+&`
 - 判断是否相等是triple qeuals`===`
-- Chisel常数定义类似于 `-3.S`, `1.U`等, `32.W`用于指定位宽 
+- Chisel常数定义类似于 `-3.S`, `1.U`等, `32.W`用于指定位宽
 
 ### Wire, Register & Memory
 
@@ -665,7 +665,7 @@ RegEnable(next, enable) // update, with enable gate
 
 #### Unit Test in Chisel
 
-  常用单元测试导入的package和测试方法如下. 
+  常用单元测试导入的package和测试方法如下.
 
 ```scala
 import chisel3.iotesters.{ChiselFlatSpec, Driver, PeekPokeTester}
@@ -859,7 +859,7 @@ class MyManyElementFir(consts: Seq[Int], bitWidth: Int) extends Module {
       if(i == 0) regs += io.in
       else       regs += RegNext(regs(i - 1), 0.U)
   }
-  
+
   val muls = mutable.ArrayBuffer[UInt]()
   for(i <- 0 until consts.length) {
       muls += regs(i) * consts(i).U
@@ -875,7 +875,7 @@ class MyManyElementFir(consts: Seq[Int], bitWidth: Int) extends Module {
 }
 ```
 
-有时候, 我们也需要Chisel提供的collection. 比如在Bundle里面需要提供Chisel instance的变量, 又比如我们访问collection的时候下标只能是一个Chisel的硬件(比如Register File). 实际上, Chisel也提供了collection 类型, 被称为`Vec`. Vec与Scala.collection具有相似的方法, 但是元素只能是Chisel instance.  
+有时候, 我们也需要Chisel提供的collection. 比如在Bundle里面需要提供Chisel instance的变量, 又比如我们访问collection的时候下标只能是一个Chisel的硬件(比如Register File). 实际上, Chisel也提供了collection 类型, 被称为`Vec`. Vec与Scala.collection具有相似的方法, 但是元素只能是Chisel instance.
 
 这里列举一个Vec的常用用法, 实际上和`Reg(..)`和`RegInit(...)`类似, 详细可查文档.
 
@@ -899,7 +899,7 @@ class MyManyDynamicElementVecFir(length: Int) extends Module {
       if(i == 0) regs(i) := io.in
       else       regs(i) := regs(i - 1)
   }
-  
+
   val muls = Wire(Vec(length, UInt(8.W)))
   for(i <- 0 until length) {
       if(i == 0) muls(i) := io.in * io.consts(i)
@@ -928,14 +928,14 @@ class RegisterFile(readPorts: Int) extends Module {
         val raddr = Input(Vec(readPorts, UInt(5.W)))
         val rdata = Output(Vec(readPorts, UInt(32.W)))
     })
-    
+
     // A Register of a vector of UInts
     val reg = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
-    
+
     when(io.wen && io.waddr=/=0.U){
         reg(io.waddr) := io.wdata
     }
-    
+
     for(i <- 0 until readPorts){
         io.rdata(i) := reg(io.raddr(i))
     }
@@ -979,7 +979,7 @@ class MyQueue extends Module {
 
 `Arbiter` 可以解决单生产者多消费者, 或者多生成者, 单消费者的问题(flip一下即可), 根据arbiter的规则还分为低下标优先`Arbiter`和轮询`RRArbiter`.
 
-####  Function Blocks  
+####  Function Blocks
 
 提供了Bitwise Utilities, OneHot encoding utilities(在muxes中特别有用), 多选器Mux和计数器Count等.
 
@@ -1109,11 +1109,11 @@ class QueueIO[T <: Data](private val gen: T, val entries: Int) extends Bundle
   * @param flow True if the inputs can be consumed on the same cycle (the inputs "flow" through the queue immediately).
   * The ''valid'' signals are coupled.
   *
-  * @example {{{
+  * @example {% raw %}{{{
   * val q = Module(new Queue(UInt(), 16))
   * q.io.enq <> producer.io.out
   * consumer.io.in <> q.io.deq
-  * }}}
+  * }}}{% endraw %}
   */
 @chiselName
 class Queue[T <: Data](gen: T,
@@ -1136,13 +1136,13 @@ class Queue[T <: Data](gen: T,
   }
 
   val io = IO(new QueueIO(genType, entries))
-  
+
         // register
   private val ram = Mem(entries, genType)
   private val enq_ptr = Counter(entries)
   private val deq_ptr = Counter(entries)
   private val maybe_full = RegInit(false.B) // maybe_full的作用是在首位指针相同的时候判断是空还是满
-        
+
 	  // wire
   private val ptr_match = enq_ptr.value === deq_ptr.value
   private val empty = ptr_match && !maybe_full
@@ -1199,9 +1199,9 @@ class Queue[T <: Data](gen: T,
 
 ###  Generate *Verilog* & *Firrtl*
 
-- 分别用`getVerilog(<Module Instance>)` 
+- 分别用`getVerilog(<Module Instance>)`
 
-  
+
 
 ## Reference
 
