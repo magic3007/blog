@@ -499,7 +499,7 @@ void eval_gpu(...); // GPU 实现
 )
 ```
 
-我们会在接下来的两个章节中介绍如何[写MLX的CPU核函数](#写mlx的cpu核函数)和[写MLX的Metal核函数](#写mlx的metal核函数)。
+我们会在接下来的两个章节中介绍如何[MLX的CPU核函数](#MLX的CPU核函数)和[MLX的Metal核函数](#MLX的Metal核函数)。
 
 
 ## 构建系统层
@@ -507,7 +507,7 @@ void eval_gpu(...); // GPU 实现
 最后，构建系统层主要由 [`src/extensions/CMakeLists.txt`](https://github.com/magic3007/tiny-llm/blob/d09be7b33ca6a3326bacf9f4c4e052bd13d4d497/src/extensions/CMakeLists.txt) 和 [`src/extensions/build.py`](https://github.com/magic3007/tiny-llm/blob/d09be7b33ca6a3326bacf9f4c4e052bd13d4d497/src/extensions/build.py) 两个文件组成，负责整体的编译流程。它们通过 MLX 的 CMake 扩展系统，将 C++ 源码编译为 `_ext.so` 动态库，同时将 Metal 源码编译为 `tiny_llm_ext.metallib`，为高效的底层计算提供支持。
 
 
-# 写MLX的CPU核函数
+# MLX的CPU核函数
 
 primitive 的 [`eval_cpu`](https://github.com/magic3007/tiny-llm/blob/d09be7b33ca6a3326bacf9f4c4e052bd13d4d497/src/extensions/src/quantized_matmul.cpp#L152) 方法负责在 CPU 上执行量化矩阵乘法的具体计算逻辑。
 
@@ -679,7 +679,7 @@ slice[2:8, 3:7]: shape=[6, 4], strides=[10, 1] // 步长保持不变
 ```
 
 
-# 写MLX的Metal核函数
+# MLX的Metal核函数
 
 下面是[`eval_gpu`](https://github.com/magic3007/tiny-llm/blob/d09be7b33ca6a3326bacf9f4c4e052bd13d4d497/src/extensions/src/quantized_matmul.cpp#L192)的具体实现：
 
