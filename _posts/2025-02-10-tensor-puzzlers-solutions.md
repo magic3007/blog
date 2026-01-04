@@ -200,9 +200,11 @@ def bucketize(v: TT["i"], boundaries: TT["j"]) -> TT["i"]:
 2. **Broadcasting**: Clever use of broadcasting can simplify complex operations.
 3. **Masking**: The `where` operation provides a powerful way to implement conditional logic.
 
+最厉害的三板斧：eye矩阵，where函数与广播机制。
+
 ## Implementation Tips
 
-1. Use `ones(j)[a]` as an alternative to `arange(j) == a[:, None]`
+1. Use `eye(j)[a]` as an alternative to `arange(j) == a[:, None]`
 2. Leverage broadcasting to avoid explicit loops
 3. Consider matrix multiplication for sequence operations
 4. Transform index operations into matrix operations using the identity matrix
