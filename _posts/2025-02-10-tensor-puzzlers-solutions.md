@@ -200,7 +200,7 @@ def bucketize(v: TT["i"], boundaries: TT["j"]) -> TT["i"]:
 2. **Broadcasting**: Clever use of broadcasting can simplify complex operations.
 3. **Masking**: The `where` operation provides a powerful way to implement conditional logic.
 
-最厉害的三板斧：eye矩阵，where函数与广播机制。
+最厉害的三板斧：eye矩阵，where函数与广播机制。最适合做思维体操的是scatter_add和filter这两个函数。
 
 ## Implementation Tips
 
