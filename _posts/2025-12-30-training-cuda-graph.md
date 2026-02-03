@@ -25,7 +25,7 @@ CUDA Graph是NVIDIA推出的一项技术，它可以将一系列GPU操作，包�
 3. 不能存在动态控制流 —— 执行路径必须是确定性的，不能依赖于运行时数据分支。
 4. 内存地址需固定 —— 需采用静态分配的输入缓冲区。
 
-其中，“内存地址需固定”这一点对 MoE（专家混合）模型尤为突出。MoE 的核心机制在于 Token Dispatcher 根据路由器（router）的分配结果，动态决定每个 token 分派给哪个 expert。即每个 batch 的路由都可能不同，进而使 AlltoAll 通信所需的数据大小和内存布局发生变化。而 CUDA Graph 要求 capture 阶段所有操作涉及的 Tensor 地址均已确定，这与 MoE 这种动态分布形成冲突。
+其中，“内存地址需固定”这一点对MoE模型尤为突出。MoE 的核心机制在于 Token Dispatcher 根据路由器（router）的分配结果，动态决定每个 token 分派给哪个 expert。即每个 batch 的路由都可能不同，进而使 AlltoAll 通信所需的数据大小和内存布局发生变化。而 CUDA Graph 要求 capture 阶段所有操作涉及的 Tensor 地址均已确定，这与 MoE 这种动态分布形成冲突。
 
 为了解决这一问题，工程实践中，我们采用“部分捕获”（Partial Capture）的方案：对于可以静态展现的部分我们用 CUDA Graph 捕获，其余涉及动态路径/动态资源分配的部分则按照传统方式执行。这样既能获得 graph 带来的 kernel launch/调度优化，也能兼顾 MoE 动态收发的灵活性。具体配置如下所示：
 ```yaml
@@ -180,8 +180,8 @@ backward_step(...)                           # Backward 最后一个
 
 然而，当前实现中CUDA Graph的实际数量不是随PP增长的，而是随num_of_microbatches线性增长。换言之，不同microbatch之间的CUDA Graph没有被复用。因此，目前系统中CUDA Graph的数量实际为 2 × num_layers × num_of_microbatches。
 
-我么可能会担心显存爆炸的问题。在此，我么需要明确两个概念：  
-1. **CUDA Graph本身**：即对CUDA操作的录制，此部分显存消耗较小，每个microbatch都有一份独立的graph。
+我们知道和num_of_microbatches成正比是一个不太好的事情，这意味和global batch size成正比，容易出现显存爆炸的问题。为了解决这个问题，我们首先需要明确两个概念：  
+1. **CUDA Graph本身**：即对CUDA操作的录制，此部分显存消耗较小，每个microbatch都有一份独立的graph是没有问题的。
 2. **中间变量显存（activation）**：在CUDA Graph捕获阶段产生。这部分显存可以在不同的CUDA Graph之间共享，经优化后实际占用量与PP成正比。这一优化空间及方法我们将在后文详细讨论。
 
 我们回到考虑VPP的情况，假设num_of_microbathes=8, PP=4，VPP=2。我们首先学习Megatron-LM里面是如何表示1F1B interleaving的，可以跟着下面代码的思路：
@@ -264,32 +264,251 @@ $$
 $$
 
 这里microbatch_group_size_pervp_stage表示每个 virtual stage 连续执行的 microbatch 数量，默认值是PP。代入到上图里计算确实这样。
+接着是`get_schedule_table`这个函数，这个函数是个生成 (microbatch_id, model_chunk_id) 的调度顺序，实际上是每个PP rank上fwd操作的顺序，这个数组每个PP rank看到的都是一样的，从上图中看到的确实是这样。同时这个顺序顺序也是每个PP rank上看到backward操作的顺序。
+```python
+def get_schedule_table(num_microbatches, num_model_chunks, microbatch_group_size_per_vp_stage):
+    """
+    生成 (microbatch_id, model_chunk_id) 的调度顺序
+    """
+    schedule_table = []
+    
+    # 按 group 遍历所有 microbatch
+    for min_microbatch_id_in_group in range(0, num_microbatches, microbatch_group_size_per_vp_stage):
+        
+        # 对于每个 group：
+        # 外层循环: model_chunk_id (0, 1, ..., VPP-1)
+        # 内层循环: microbatch_id (group 内的连续 microbatch)
+        
+        schedule_table.extend([
+            (microbatch_id, model_chunk_id)
+            for model_chunk_id in range(num_model_chunks)      # 外层
+            for microbatch_id in range(group_start, group_end)  # 内层
+        ])
+    
+    return schedule_table
+```
+比如参数为num_microbatches=8, num_model_chunks=2, microbatch_group_size=4的时候，
+```
+# Group 0: microbatch 0-3
+# Group 1: microbatch 4-7
 
+# 遍历过程：
+Group 0 (mb 0-3):
+  chunk 0: mb 0, 1, 2, 3  →  (0,0), (1,0), (2,0), (3,0)
+  chunk 1: mb 0, 1, 2, 3  →  (0,1), (1,1), (2,1), (3,1)
+
+Group 1 (mb 4-7):
+  chunk 0: mb 4, 5, 6, 7  →  (4,0), (5,0), (6,0), (7,0)
+  chunk 1: mb 4, 5, 6, 7  →  (4,1), (5,1), (6,1), (7,1)
+
+# 最终 schedule_table:
+schedule_table = [
+    (0,0), (1,0), (2,0), (3,0),  # chunk 0, mb 0-3
+    (0,1), (1,1), (2,1), (3,1),  # chunk 1, mb 0-3
+    (4,0), (5,0), (6,0), (7,0),  # chunk 0, mb 4-7
+    (4,1), (5,1), (6,1), (7,1),  # chunk 1, mb 4-7
+]
+```
+
+接着是`convert_schedule_table_to_order`这个函数，每个PP rank的num_warmup_microbatches是不一样的，都是都是全forward（warmup） + forward和backward交替 + 全backward三个阶段。只需要知道warmup有几个microbatches，后面的就能模拟出来了。
+```python
+
+# Step 1: schedule_table
+schedule_table = [
+    (0,0), (1,0), (2,0), (3,0),  # chunk 0, mb 0-3
+    (0,1), (1,1), (2,1), (3,1),  # chunk 1, mb 0-3
+    (4,0), (5,0), (6,0), (7,0),  # chunk 0, mb 4-7
+    (4,1), (5,1), (6,1), (7,1),  # chunk 1, mb 4-7
+]
+
+# _, model_chunk_id_table = zip(*schedule_table)
+model_chunk_id_table = [0,0,0,0, 1,1,1,1, 0,0,0,0, 1,1,1,1]
+
+# Step 2: forward_order 和 backward_order
+forward_order  = [1,1,1,1, 2,2,2,2, 1,1,1,1, 2,2,2,2]   # chunk_id + 1
+backward_order = [-2,-2,-2,-2, -1,-1,-1,-1, -2,-2,-2,-2, -1,-1,-1,-1]  # chunk_id - 2
+
+# Step 3: 生成 order
+# Warmup: forward_order[:10]
+order = [1,1,1,1, 2,2,2,2, 1,1]
+
+# 1F1B: i = 10 to 15
+# i=10: fwd[10]=1, bwd[0]=-2  → [1, -2]
+# i=11: fwd[11]=1, bwd[1]=-2  → [1, -2]
+# i=12: fwd[12]=2, bwd[2]=-2  → [2, -2]
+# i=13: fwd[13]=2, bwd[3]=-2  → [2, -2]
+# i=14: fwd[14]=2, bwd[4]=-1  → [2, -1]
+# i=15: fwd[15]=2, bwd[5]=-1  → [2, -1]
+
+# Cooldown: backward_order[-10:]
+# = [-1,-1, -2,-2,-2,-2, -1,-1,-1,-1]
+
+```
 
 > 补充一句，VPP的本质是切更多的流水线阶段，只是将部分流水线阶段划分到同一个 GPU 上。如果我们的 GPU 数量足够，其实完全可以把这些被切分出来的子阶段分别放在不同的 GPU 上，只是受限于现实资源有限，只能将多个阶段合并放置于同一块 GPU罢了。因此从理论分析的角度，Bubble time fraction就是会下降至原先的 1/VPP，因为本质上流水线阶段就是变多了。
 
+有了这个order之后，一个非常简单规则：当 order 中出现一个负数（backward），对应的 forward buffer 就可以被后续的 forward 复用了。这个规则将指导我们下面的显存复用，做到和PP成正比。
+
+> 更加准确地说，同时因为进入稳定1F1B阶段正数和负数是交替的，是边使用边释放，因此更加准确来说，activation的峰值占用和(PP - rank - 1) × 2 + (VPP - 1) × PP + 1成正比。
+
+## fwd graph的Static Input buffer的大小如何做到和PP成正比？
+
+根据这个简单规则简单模拟即可。注意一个model chunk对应多个layer，我们首先获得每个layer的输入应该长什么样子（记为sample_keys), 然后模拟即可：
+```python
+# Forward: 尝试复用
+if consumed_sample_queue.get(sample_keys, []):
+    # 有可复用的 → 直接复用
+    reuse_fwd_idx = consumed_sample_queue[sample_keys].pop(0)
+    sample_args[per_callable_fwd_idx] = sample_args[reuse_fwd_idx]  # 复用！
+else:
+    # 没有可复用的 → 生成新的
+    sample_args[per_callable_fwd_idx] = _get_layer_static_inputs(...)
+
+# Backward: 释放 buffer
+for sample_keys, fwd_idx in fwd_sample_queues[chunk][:num_layers]:
+    consumed_sample_queue[sample_keys].append(fwd_idx)  # 标记可复用
+```
+这部分其实是TE的make_graphed_callables()的参数`_reuse_graph_input_output_buffers`对fwd graph的input buffer做的[事情](https://github.com/NVIDIA/TransformerEngine/blob/74faf7ec422229bcecf9e079d96b429da071e7b7/transformer_engine/pytorch/graph.py#L241-L292)。对于bwd graph的input buffer，这部分不需要像fwd那样保存中间结构，[直接检查key是否存在然后复用即可](https://github.com/NVIDIA/TransformerEngine/blame/74faf7ec422229bcecf9e079d96b429da071e7b7/transformer_engine/pytorch/graph.py#L615C18-L628)。这样就可以做到static Input buffer的大小和PP成正比。当然在Magatron-LM中准备sample args的时候，也要[参考TE这样做](https://github.com/NVIDIA/Megatron-LM/blob/708069774569517cc1802e6c339730a689179d4d/megatron/core/transformer/cuda_graphs.py#L1928-L2031)，不然在运行某个时候这部分大小会和num of microbatches成正比。
+
 ## 中间变量的显存占用如何做到和PP成正比？
 
-这里的核心要点是使用
-## Static Input buffer的大小如何做到和PP成正比？
+Static Input buffer这部分我们可以自己通过模拟pipeline的调度显式控制，使得和PP而不是和num_of_microbatches成正比。
+另外一个需要思考的如何让中间变量的显存占用做到和PP成正比。为了实现这个我们需要的使用到memory pool这个功能以及pytorch的`make_weak_ref`这个功能。
+首先，我们需要让所有的graph都共享一个memory pool，
+```python
+# graph.py:359
+mempool = graph_pool_handle() if pool is None else pool
+
+# 所有 graph 捕获时都使用同一个 pool
+with _graph_context_wrapper(fwd_graph, pool=mempool):  # forward graph
+    outputs = func(*args, **kwargs)
+
+with _graph_context_wrapper(bwd_graph, pool=mempool):  # backward graph
+    ...
+```
+因为pytoch的API默认情况下，每个 CUDA Graph 有私有内存池，内存不能互相复用；所有 Graph 共享一个池才有复用的可能性。
+```
+┌─────────────────────────────────────────────────────────────┐
+│  默认行为：每个 CUDA Graph 有私有内存池                      │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐                     │
+│  │ Graph 1 │  │ Graph 2 │  │ Graph 3 │  ...                │
+│  │ Pool 1  │  │ Pool 2  │  │ Pool 3  │                     │
+│  └─────────┘  └─────────┘  └─────────┘                     │
+│  内存不能互相复用 → 总显存 = N * graph_size                 │
+├─────────────────────────────────────────────────────────────┤
+│  共享 Memory Pool：所有 Graph 共享一个池                    │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Shared Memory Pool                      │   │
+│  │  ┌───────┐ ┌───────┐ ┌───────┐                      │   │
+│  │  │Graph 1│ │Graph 2│ │Graph 3│  ...                 │   │
+│  │  └───────┘ └───────┘ └───────┘                      │   │
+│  │  内存可以复用 → 总显存 = max_concurrent * graph_size │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+在复用了同一个memory pool之后，为了让中间变量释放，我们需要做的是及时触发python的gc自动删除不再需要的中间变量。在这里，我们需要用到Pytorch的`make_weak_ref`这个功能：
+```python
+class _WeakRefTensor:
+    """只保存 data_ptr，不持有 tensor 引用"""
+    def __init__(self, data_ptr, dtype, shape):
+        self._data_ptr = data_ptr   # 只记录地址
+        self.dtype = dtype
+        self.shape = shape
+        # 注意：没有保存对原 tensor 的引用！
+
+def make_weak_ref(x):
+    if isinstance(x, torch.Tensor):
+        return _WeakRefTensor(x.data_ptr(), x.dtype, x.shape)
+        # 原 tensor 的引用被丢弃 → PyTorch 认为该内存可以释放
+```
+其核心原理是：make_weak_ref 把"持有引用的 tensor 对象"替换成"只记录地址的整数"，原 tensor 失去所有引用后被 Python GC 回收，PyTorch 随之释放其 GPU 内存回 mempool。地址虽然还被记住，但内存已经可以被其他 graph 复用了。
+```
+原始状态：
+┌─────────────────────────────────────────────┐
+│  per_callable_static_outputs[idx]           │
+│  = (tensor_A, tensor_B, tensor_C)           │
+│        ↓         ↓         ↓                │
+│   ┌────────┐ ┌────────┐ ┌────────┐          │
+│   │ Memory │ │ Memory │ │ Memory │ (被占用) │
+│   └────────┘ └────────┘ └────────┘          │
+└─────────────────────────────────────────────┘
+
+调用 make_weak_ref 后：
+┌─────────────────────────────────────────────┐
+│  per_callable_static_outputs[idx]           │
+│  = (_WeakRefTensor, _WeakRefTensor, ...)    │
+│        ↓ (只保存地址，不持有引用)            │
+│   ┌────────┐ ┌────────┐ ┌────────┐          │
+│   │ Memory │ │ Memory │ │ Memory │ (可复用) │
+│   └────────┘ └────────┘ └────────┘          │
+│   ↑ PyTorch 认为这些内存不再被使用          │
+│   ↑ 可以被后续的 graph capture 复用         │
+└─────────────────────────────────────────────┘
+```
+因此，当完成一个backward后，我们能将三部分tensor设置为week reference，从而触发python的自动gc：
+```python
+# graph.py:634-665
+# Weak ref the static outputs and static grad inputs that are no longer needed
+# in the following steps. These two type of tensors are both in cudagraph
+# mempool, so we just deallocate them and let PyTorch's memory allocator
+# reuse them elsewhere.
+if _reuse_graph_input_output_buffers:
+    # 1. Weak ref the static outputs of the forward pass of this backward. It's
+    # no longer needed after the corresponding backward graph is built up.
+    per_callable_static_outputs[per_callable_bwd_idx] = make_weak_ref(
+        static_outputs
+    )
+
+    # 2. Weak ref the static grad inputs of the previous backward pass within the
+    # same chunk.
+    if previous_per_callable_bwd_idx is not None:
+        idx = previous_per_callable_bwd_idx
+        per_callable_static_grad_inputs[idx] = make_weak_ref(
+            per_callable_static_grad_inputs[idx]
+        )
+    previous_per_callable_bwd_idx = per_callable_bwd_idx
+
+    # 3. Weak ref the static grad inputs of the previous chunk's last backward
+    # pass.
+    # Note: After a chunk's backward pass, we assume Mcore will send the grad
+    # input to another pipeline parallel rank and that the communication is
+    # finished before the end of the next chunk's backward pass.
+    if l_no == 0:
+        if previous_chunk_last_callable_bwd_idx is not None:
+            idx = previous_chunk_last_callable_bwd_idx
+            per_callable_static_grad_inputs[idx] = make_weak_ref(
+                per_callable_static_grad_inputs[idx]
+            )
+        previous_chunk_last_callable_bwd_idx = per_callable_bwd_idx
+                if ceil(c_id) == c_id:
+                    bwd_idx[m_chunk] += 1
+```
 
 
-## 还有可以buffer复用的空间吗？Input/Output Buffer复用
+
+# 基于 Python 异常机制实现 graph 边界的动态中断与恢复
 
 
 ## 显存占用与 CUDA Graph 数量分析
 
-结合上文分析，下面以表格形式梳理不同配置下 CUDA Graph 的数量以及CUDA Graph内的buffer数量。其中，CUDA Graph是 CUDA 操作的录制，每个 microbatch有独立的graph，
+结合上文分析，下面以表格形式梳理不同配置下 CUDA Graph 的数量以及fwd graph static input buffer以及中间变量的显存大小。其中，CUDA Graph是 CUDA 操作的录制，录制部分占用的显存很小，在实现的时候每个 microbatch有独立的graph；但是fwd graph static input buffer以及中间变量的显存是需要根据PP实现microbatch之间共享的，使得和PP而不是num of microbatches成正比。
 
-| 运行配置   | CUDA Graph 数量                     |
-| ------ | --------------------------------- |
-| 不启用 PP | 2 × num_layers                    |
-| 启用 PP  | 2 × num_layers × num_microbatches |
+| 运行配置   | CUDA Graph 数量                     | fwd graph static input buffer显存大小 | 中间变量的显存大小           |
+| ------ | --------------------------------- | --------------------------------- | ------------------- |
+| 不启用 PP | 2 × num_layers                    | 与num_layers成正比                    | 与num_layers成正比      |
+| 启用 PP  | 2 × num_layers × num_microbatches | 与num_layers × PP成正比               | 与num_layers × PP成正比 |
 
-这里我们思考一个问题，相比于不使用CUDA Graph，使用partial CUDA Graph实际增加的显存占用的在哪里？
+这里我们思考一个问题，相比于不使用CUDA Graph，使用partial CUDA Graph实际增加的显存占用在哪里？
+通过上面的分析，我们知道相比于不使用CUDA Graph，Partial CUDA Graph 额外增加的显存主要来自：(1) PP 份 Static Input Buffers，(2) PP 份 MoE 中断点张量 (MoECudaGraphTensorStore)。
 
-# 基于 Python 异常机制实现 graph 边界的动态中断与恢复
+| 开销类型                 | 显存大小估算                                    | 是否可优化                 |
+| -------------------- | ----------------------------------------- | --------------------- |
+| CUDA Graph 对象        | < 100 MB                                  | 较小，可忽略                |
+| Static Input Buffers | PP × layer × input_size<br>~128 MB - 1 GB | 通过 1F1B 复用已优化到 PP 份   |
+| MoE 中断点张量            | PP × MoE_layers × store_size<br>~1-3 GB   | Partial Graph 特有，不可避免 |
+| Mempool 碎片           | -                                         | -                     |
 
+注意到很多地方都和num_layers相关，这是因为我们采用partial cuda graph逐layer进行capture，因此我们需要设置和num_layers成正比的同步点，这提示我们加入我们后面可以尽可能capture更完整的模型部分，我们额外需要的显存也会更小。
 
 # 使用CUDA Graph时常见的易错点
 
