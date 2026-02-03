@@ -7,7 +7,10 @@ categories:
 tags:
   - lmsys
 mathjax: true
+mathjax_autoNumber: true
 mermaid: true
+## Chart
+chart: true
 aside:
   toc: true
 ---
@@ -483,12 +486,43 @@ if _reuse_graph_input_output_buffers:
                 if ceil(c_id) == c_id:
                     bwd_idx[m_chunk] += 1
 ```
+# MoE Partial Capture/Replay的工作流程
 
+上面的叙述适用于任意layer，对于dense layer这种可以完全被capture没有太大的问题，对于MoE layer，我们需要根据config配置capture部分操作。为了实现这部分功能，我们基于基于 Python 异常机制实现 graph 边界的动态中断与恢复。首先我们看MoE partial capture/replay的总体工作流程如下：
 
+```mermaid
+sequenceDiagram
+    participant TL as TransformerLayer
+    participant MoE as MoELayer
+    participant Router as Router
+    participant Dispatcher as TokenDispatcher
+    participant Store as CudagraphTensorStore
 
-# 基于 Python 异常机制实现 graph 边界的动态中断与恢复
+    rect rgb(200, 220, 255)
+        note over TL,Store: CUDA Graph Capture Phase
+        TL->>MoE: forward(hidden_states)
+        MoE->>Router: route()
+        Router-->>MoE: probs, routing_map
+        MoE->>Dispatcher: preprocess()
+        Dispatcher-->>MoE: raise PartialCaptureSignal
+        MoE-->>TL: early_return_outputs
+    end
 
+    rect rgb(220, 255, 220)
+        note over TL,Store: CUDA Graph Replay Phase
+        TL->>TL: replay graph → outputs
+        TL->>Store: set(hidden_states, probs, routing_map, residual)
+        TL->>MoE: forward(hidden_states)
+        MoE->>Store: check tensor_store
+        Store-->>MoE: skip router/preprocess
+        MoE->>MoE: dispatch → compute → combine
+        MoE-->>TL: output
+    end
+```
 
+## 基于 Python 异常机制实现 graph 边界的动态中断与恢复
+
+	
 ## 显存占用与 CUDA Graph 数量分析
 
 结合上文分析，下面以表格形式梳理不同配置下 CUDA Graph 的数量以及fwd graph static input buffer以及中间变量的显存大小。其中，CUDA Graph是 CUDA 操作的录制，录制部分占用的显存很小，在实现的时候每个 microbatch有独立的graph；但是fwd graph static input buffer以及中间变量的显存是需要根据PP实现microbatch之间共享的，使得和PP而不是num of microbatches成正比。
