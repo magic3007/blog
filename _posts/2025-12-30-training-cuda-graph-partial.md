@@ -19,7 +19,7 @@ aside:
 
 CUDA Graph是NVIDIA推出的一项技术，它可以将一系列GPU操作，包括kernel launches，memory copies预先在capture阶段录制成一个图，然后在replay阶段一次性提交执行。CUDA Graph最大的好处是可以极大减少CPU开销，减少kernel launch latency，这在使用Grace CPU的B系列NV芯片上带来的好处尤其突出。同时GPU可以更好的优化执行顺序，减少运行队列中间的bubble。
 > 针对B系列芯片CPU开销较大的问题，这里以MoE层中fc1的grouped GEMM操作为例进行说明。以下的实验均在B系列芯片上进行。在Transformer Engine中，默认的grouped GEMM其实是通过循环触发多个GEMM kernel，并分配到不同的CUDA stream上执行（如左图所示），本质上不是“真正”的grouped GEMM。而如果在B系列芯片上直接调用cutblass，只需启动一次kernel即可完成真正的grouped GEMM（如右图所示），这种方式能显著减少kernel launch次数，从而大幅降低overhead。同时可以看到，左图在GEMM计算结束后，队列中出现一段bubble才进入激活函数环节，也从侧面反映出CPU带来的额外延迟。值得一提的是，TE默认采用多stream实现grouped GEMM的做法在H系列芯片上通常更优，但迁移到B系列时就未必适合了。
-> {% include img.html src="2025-12-30-training-cuda-graph.assets/1040025031s2kp8r11k0a6r18ok.webp" alt="1589443681801" %}
+> {% include img.html src="2025-12-30-training-cuda-graph-partial.assets/1040025031s2kp8r11k0a6r18ok.webp" alt="1589443681801" %}
 
 当然，使用 CUDA Graph 也引入了一些新的限制和约束：
 
@@ -89,46 +89,43 @@ args, kwargs = layer.get_layer_static_inputs(self.seq_length, self.micro_batch_s
 # the safest approach is to capture all passes in the same order they'll run:
 # fwd 1, fwd 2, ... fwd N, then bwd N, bwd N-1, ... bwd 1.
 ```
-4. `make_graphed_callables` 最终返回一组包装好的 callable，每次直接调用这些 callable 的 forward/backward 方法，即等价于 replay 预先录制好的 graph。实际回放过程简化代码如下：
+4. `make_graphed_callables` 最终返回一组包装好的 callable，这些**callable本质上是是调用`torch.autograd.Funtion`的闭包**，调用callable的返回值就是有我们自定义grad_fn的tensor。换句话说，我们的fwd_graph和bwd_graph其实是存在闭包里面的。
 ```python
-class Graphed(torch.autograd.Function):
-    """用于 graph 回放的自定义 Autograd Function。"""
-
-    @staticmethod
-    def forward(ctx, *inputs):
-        # 将新输入的数据拷贝进预分配静态 tensor
-        for i in range(len_user_args):
-            if (
-                isinstance(static_input_surface[i], torch.Tensor)
-                and static_input_surface[i].data_ptr() != inputs[i].data_ptr()
-            ):
-                static_input_surface[i].copy_(inputs[i])
-
-        # 回放 Graph 里的 forward kernel
-        fwd_graph.replay()
-        assert isinstance(static_outputs, tuple)
-        return tuple(o.detach() for o in static_outputs)
-
-    @staticmethod
-    @torch.autograd.function.once_differentiable
-    def backward(ctx, *grads):
-        # 回放 backward kernel
-        assert len(grads) == len(static_grad_outputs)
-        for g, grad in zip(static_grad_outputs, grads):
-            if g is not None:
-                # 若 grad 已处于目标 buffer, 则无需拷贝
-                if g.data_ptr() != grad.data_ptr():
-                    g.copy_(grad)
-        bwd_graph.replay()
-
-        # 对于不需要 grad 的输入，autograd 期望收到 None
-        assert isinstance(static_grad_inputs, tuple)
-        return (None,) + tuple(
-            b.detach() if b is not None else b for b in static_grad_inputs
-        )
+def make_graphed_callables(...):
+    # ... 捕获 graph 的代码 ...
+    
+    # 这些变量会被闭包捕获
+    static_input_surface = [...]
+    static_outputs = (...)
+    static_grad_outputs = (...)
+    static_grad_inputs = (...)
+    fwd_graph = torch.cuda.CUDAGraph()
+    bwd_graph = torch.cuda.CUDAGraph()
+    
+    # 定义自定义 autograd function（被闭包捕获）
+    class Graphed(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, skip_fp8_weight_update, *inputs):
+            # 使用闭包捕获的变量
+            static_input_surface[i].copy_(inputs[i])
+            fwd_graph.replay()
+            return tuple(o.detach() for o in static_outputs)
+        
+        @staticmethod
+        def backward(ctx, *grads):
+            static_grad_outputs[i].copy_(grads[i])
+            bwd_graph.replay()
+            return static_grad_inputs
+    
+    # 闭包函数：捕获 Graphed 和其他变量
+    def functionalized(*user_args, **user_kwargs):
+        # 调用 Graphed.apply() 执行 forward
+        out = Graphed.apply(skip_fp8_weight_update, *func_args)
+        return _tree_unflatten(out, output_unflatten_spec)
+    
+    return functionalized  # 返回闭包
 ```
-
-**接着是最后阶段**，我们将可cuda replay的 Graph分配给各层对象作为一个成员变量，供后续调用。
+**接着是最后阶段**，我们将这些闭包对象分配给各层对象作为一个成员变量，供后续调用。
 
 ## CUDA Graph在microbatch之间能否复用？
 我们接下来思考另一个问题，现在有有多个micro batches，CUDA Graph在microbatch之间能否复用？不妨假设number of microbatches=4。实际上，这个和micro batch的forward和backward调用有关系。
@@ -520,9 +517,411 @@ sequenceDiagram
     end
 ```
 
-## 基于 Python 异常机制实现 graph 边界的动态中断与恢复
 
-	
+我们分为capture阶段和replay阶段来看如何实现Partial CUDA Graph技术：
+* **异常信号机制**：在capture阶段使用 `MoECudaGraphPartialCaptureSignal` 实现优雅的提前返回，只捕获静态部分（attention、router、preprocess）
+* **状态恢复机制**：在 replay 阶段，使用 `MoECudaGraphTensorStore` 跳过已计算部分
+
+我们首先自顶向下来看CUDA Graph Capture的过程。
+首先是最外层的`TransformerLayer`, TransformerLayer原本继承自`MegatronModule`, 现在改成继承自`GraphableMegatronModule`。`GraphableMegatronModule` 是支持 CUDA Graph 的 Megatron 模块基类，目前被 TransformerLayer 和 MambaLayer 继承。
+在初始化中，我们存储记录每个microbatch的graph callable（就是上文描述过的闭包）以及手动hook（后面会描述）：
+```python
+def __init__(self, config: TransformerConfig, vp_stage: Optional[int] = None):
+    super().__init__(config)
+    
+    if config.cuda_graph_impl == "local":
+        # Local 实现：使用 CudaGraphManager
+        self.cudagraph_manager = CudaGraphManager(config, vp_stage=vp_stage)
+        
+    elif config.cuda_graph_impl == "transformer_engine":
+        # TE 实现：
+        self.cuda_graphs = []          # 存储每个 microbatch 的 graph callable
+        self.cuda_graph_manual_hooks = []  # 手动 hooks（参数 all-gather 等）
+```
+其__call__函数就会检查是否走 TE CUDA Graph 路径：
+```python
+# module.py:285-300
+def __call__(self, *args, **kwargs):
+    if self._should_call_local_cudagraph(*args, **kwargs):
+        # Local 实现
+        return self.cudagraph_manager(self, args, kwargs)
+    elif self._should_call_te_cudagraph(*args, **kwargs):
+        if not self.cuda_graphs:
+            # Capture 模式
+            cuda_graph_func = self._te_cuda_graph_capture
+        else:
+            # Replay 模式
+            cuda_graph_func = self._te_cuda_graph_replay
+        return cuda_graph_func(*args, **kwargs)
+    # 普通 forward
+    return super().__call__(*args, **kwargs)
+```
+
+其中，继承`GraphableMegatronModule`需要自定义`_te_cuda_graph_capture`分别制定TE CUDA Graph Capture和TE CUDA Graph Replay的时候要怎么做。`TransformerLayer`的`_te_cuda_graph_capture`实现如下：
+```python
+def _te_cuda_graph_capture(self, *args, **kwargs):
+    # 根据 scope 决定捕获什么
+    if not self.config.cuda_graph_scope or 'attn' in self.config.cuda_graph_scope:
+        hidden_states, context = self._forward_attention(*args, **kwargs)
+    
+    if 'moe_router' in self.config.cuda_graph_scope:
+        hidden_states = self._forward_mlp(hidden_states)  # 会触发异常提前返回
+    
+    # 收集输出
+    cuda_graph_outputs = [hidden_states, ...]
+    return tuple(cuda_graph_outputs)
+```
+这里我们就能很清晰看到如何根据配置选择需要执行的范围。如果我们只capture attn部分，那么我们就不会运行`_forward_mlp`部分，这个时候__call__的调用就没有跑完整个transformer layer了，直接就返回了attn的结果。但是如果我们想capture `_forward_mlp`的前半部分，本质上这里是可以类似attn一样继续拆分下去的，只要在合适的点退出即可。事实上，我们确实对对MoE 的 forward 被拆分成多个独立的函数：
+```python
+class MoELayer(BaseMoELayer):
+    def __init__(self, ...):
+        # ... 省略其他初始化 ...
+    
+    @maybe_skip_or_early_return_by_cudagraph("shared_experts_compute")
+    def shared_experts_compute(self, hidden_states: torch.Tensor):
+        """计算 shared expert 的输出（如果配置了的话）"""
+        shared_expert_output = None
+        if self.use_shared_expert and not self.shared_expert_overlap:
+            if self.shared_experts_recompute:
+                shared_expert_output = tensor_parallel.checkpoint(
+                    self.shared_experts, False, hidden_states
+                )
+            else:
+                shared_expert_output = self.shared_experts(hidden_states)
+        return shared_expert_output
+    
+    @maybe_skip_or_early_return_by_cudagraph("route")
+    def route(self, hidden_states: torch.Tensor):
+        """使用 router 计算 token 到 expert 的映射"""
+        probs, routing_map = self.router(hidden_states)
+        return probs, routing_map
+    
+    @maybe_skip_or_early_return_by_cudagraph("preprocess")
+    def preprocess(self, hidden_states, probs, routing_map):
+        """预处理：计算通信 splits，重排 token"""
+        residual = hidden_states
+        hidden_states, probs = self.token_dispatcher.dispatch_preprocess(
+            hidden_states, routing_map, probs
+        )
+        return hidden_states, probs, residual
+    
+    # 以下方法不使用装饰器，因为它们已经在 partial capture 范围之外
+    def dispatch(self, hidden_states, probs):
+        """执行 AlltoAll 通信"""
+        return self.token_dispatcher.token_dispatch(hidden_states, probs)
+    
+    def routed_experts_compute(self, hidden_states, probs, residual):
+        """在 dispatched tokens 上计算 expert 输出"""
+        dispatched_input, tokens_per_expert, permuted_probs = (
+            self.token_dispatcher.dispatch_postprocess(hidden_states, probs)
+        )
+        expert_output, mlp_bias = self.experts(dispatched_input, tokens_per_expert)
+        output = self.token_dispatcher.combine_preprocess(expert_output)
+        return output, mlp_bias
+    
+    def combine(self, output, shared_expert_output):
+        """合并 routed expert 和 shared expert 的输出"""
+        output = self.token_dispatcher.token_combine(output)
+        if shared_expert_output is not None:
+            output = output + shared_expert_output
+        return output
+```
+理论上我们可以类似刚才`TransformerLayer`的`_te_cuda_graph_capture`函数，读取config判断什么时候退出即可，但是这样对代码侵入改动太大了。面对这样的问题，其实就是在某函数上“外包”一层，直接使用装饰器模式：
+```python
+def maybe_skip_or_early_return_by_cudagraph(step_condition):
+    """
+    step_condition 可以是:
+    - "shared_experts_compute": 跳过 shared expert 计算
+    - "route": 跳过 router 计算（或在 capture 时提前返回）
+    - "preprocess": 跳过 preprocess 计算（或在 capture 时提前返回）
+    """
+    
+    def maybe_raise_signal(moe_layer, **kwargs):
+        """Capture 阶段：检查是否需要提前返回"""
+        if (
+            moe_layer.config.cuda_graph_impl == "transformer_engine"
+            and moe_layer.training
+            and is_graph_capturing()
+        ):
+            if step_condition == "route" and 'moe_router' in scope and 'moe_preprocess' not in scope:
+                raise MoECudaGraphPartialCaptureSignal(moe_layer, "route", **kwargs)
+            elif step_condition == "preprocess" and 'moe_preprocess' in scope:
+                raise MoECudaGraphPartialCaptureSignal(moe_layer, "preprocess", **kwargs)
+    
+    def decorator(func):
+        def wrapped_func(moe_layer, *args, **kwargs):
+            # 非 cudagraph 路径：直接执行
+            if not is_graph_capturing() and moe_layer.cudagraph_tensor_store.is_empty():
+                return func(moe_layer, *args, **kwargs)
+            
+            # Capture 和 Replay 路径
+            if step_condition == "route":
+                if moe_layer.cudagraph_tensor_store.probs is None:
+		            # Capture 阶段
+                    # 执行 router 计算
+                    probs, routing_map = func(moe_layer, *args, **kwargs)
+                    # 可能抛出异常提前返回
+                    maybe_raise_signal(moe_layer, probs=probs, routing_map=routing_map)
+                else:
+                    # Replay 阶段：从 store 读取，跳过计算
+                    probs = moe_layer.cudagraph_tensor_store.probs
+                    routing_map = moe_layer.cudagraph_tensor_store.routing_map
+                return probs, routing_map
+            
+            # 类似处理 "preprocess" 和 "shared_experts_compute"
+        return wrapped_func
+    return decorator
+```
+注意这个装饰器其在Capture和Replay都有用到，用`is_graph_capturing()`来区分 Capture vs Replay。我们可以先关注Capture部分，我们发现，这里就是根据config来判断什么时候抛出异常，同时这个异常还会带有信息来帮助我们得到中间结果。下面是`MoECudaGraphPartialCaptureSignal`这个异常的定义：
+
+```python
+# megatron/core/transformer/moe/moe_utils.py
+
+class MoECudaGraphPartialCaptureSignal(Exception):
+    """
+    用于在 CUDA graph capture 阶段从 MoE 层提前返回。
+    当我们只想部分捕获 MoE 层时，会抛出这个异常。
+    """
+    
+    def __init__(self, moe_layer, return_step: str, **kwargs):
+        self.moe_layer = moe_layer
+        self.return_step = return_step  # "route" 或 "preprocess"
+        self.kwargs = kwargs  # 保存中间结果
+    
+    def get_early_return_outputs(self, hidden_states, shared_expert_output):
+        """收集作为 CUDA graph 输出的张量"""
+        
+        if self.return_step == "route":
+            # moe_router scope: 返回 3 个张量
+            outputs = [hidden_states, self.kwargs['probs'], self.kwargs['routing_map']]
+            
+        elif self.return_step == "preprocess":
+            # moe_preprocess scope: 返回 3 个张量 + dispatcher 属性
+            outputs = [self.kwargs['hidden_states'], self.kwargs['probs'], self.kwargs['residual']]
+            
+            # 遍历 dispatcher 的 cudagraph_attrs，收集所有 tensor 属性
+            for attr_name in self.moe_layer.token_dispatcher.cudagraph_attrs:
+                # 支持层级属性，如 'shared_experts.gate_score'
+                hier_attr_name = attr_name.split('.')
+                attr = self.moe_layer.token_dispatcher
+                for name in hier_attr_name:
+                    attr = getattr(attr, name, None)
+                    if attr is None:
+                        break
+                if isinstance(attr, torch.Tensor):
+                    outputs.append(attr)
+        
+        # 如果有 shared expert output，也加入
+        if shared_expert_output is not None:
+            outputs.append(shared_expert_output)
+        
+        return outputs
+```
+
+因此对于MoE层， 我们只需要在forward里面捕捉一下异常即可：
+
+```python
+def forward(self, hidden_states: torch.Tensor):
+    """MoE forward: route → dispatch → compute → combine"""
+    
+    # ECHO 模式使用不同的 forward
+    if self.config.moe_enable_echo:
+        return self.echo_forward(hidden_states)
+    
+    def custom_forward(hidden_states):
+        try:
+            # 这三个方法都被装饰器包装
+            # Capture 阶段：可能在任意位置抛出异常
+            # Replay 阶段：检查 tensor_store，可能跳过计算
+            shared_expert_output = self.shared_experts_compute(hidden_states)
+            probs, routing_map = self.route(hidden_states)
+            hidden_states, probs, residual = self.preprocess(hidden_states, probs, routing_map)
+            
+        except MoECudaGraphPartialCaptureSignal as e:
+            # 捕获 Partial Capture 信号
+            # 这意味着我们只需要返回中间结果作为 CUDA graph 输出
+            return e.get_early_return_outputs(hidden_states, shared_expert_output)
+        
+        # 如果没有抛出异常，继续执行剩余部分
+        # 这部分在 Capture 阶段不会执行（因为异常提前返回）
+        # 在 Replay 阶段会执行（从 store 恢复后继续）
+        dispatched_input, probs = self.dispatch(hidden_states, probs)
+        output, mlp_bias = self.routed_experts_compute(dispatched_input, probs, residual)
+        output = self.combine(output, shared_expert_output)
+        return output, mlp_bias
+    
+    # 支持激活重计算
+    if self.moe_layer_recompute:
+        outputs = tensor_parallel.checkpoint(custom_forward, False, hidden_states)
+    else:
+        outputs = custom_forward(hidden_states)
+    
+    return outputs
+```
+
+另外需要注意一点是，Preprocess 会被 Graph Capture，但是其计算结果 tokens_per_expert, routing_map 等这些被存储为 dispatcher 的属性，因此这些也需要作为CUDA Graph的输出，我们用`cudagraph_attrs`来标记。
+```python
+# dispatcher.preprocess() 执行后会设置这些属性：
+dispatcher.tokens_per_expert = [100, 50, 200, ...] # 动态计算的！
+dispatcher.routing_map = torch.Tensor(...)
+dispatcher.input_splits = [...]
+# ... 等等
+```
+
+同时我们需要调整DtoH 同步点，需要延迟到 `before_ep_alltoall`完成DtoH的同步。
+```python
+class MoEAlltoAllTokenDispatcher(MoETokenDispatcher):
+    def __init__(self, ...):
+        # ... 省略其他初始化 ...
+        
+        # 调整 DtoH 同步点：如果使用 moe_preprocess，延迟到 graph 边界之后
+        if (
+            config.cuda_graph_impl == "transformer_engine"
+            and 'moe_preprocess' in config.cuda_graph_scope
+        ):
+            self.cuda_dtoh_point = "before_ep_alltoall"  # 延迟
+        else:
+            self.cuda_dtoh_point = "before_permutation_1"  # 默认
+        
+        # 需要被 CUDA graph 捕获的属性列表
+        self.cudagraph_attrs = [
+            'tokens_per_expert',                        # 每个 expert 的 token 数量
+            'input_splits',                             # 发送到各 EP rank 的 token 数
+            'output_splits',                            # 从各 EP rank 接收的 token 数
+            'output_splits_tp',                         # 从各 TP rank 接收的 token 数
+            'num_out_tokens',                           # 输出 token 总数
+            'num_global_tokens_per_local_expert',       # 全局 token 分布
+            'reversed_local_input_permutation_mapping', # 反向 permutation 映射
+            'routing_map',                              # token-expert 路由映射
+        ]
+        self.valid_cudagraph_attrs = None  # 实际有效的属性（Cpature时确定）
+    
+    def set_shared_experts(self, shared_experts):
+        """设置 shared expert 时，添加额外的属性"""
+        super().set_shared_experts(shared_experts)
+        if shared_experts.use_shared_expert_gate:
+            self.cudagraph_attrs.append('shared_experts.gate_score')
+        self.cudagraph_attrs.append('shared_experts.cached_fc1_input')
+```
+另外一个区别是是cudagraph_attrs和valid_cudagraph_attrs。cudagraph_attrs 是静态定义的"想要捕获的属性"候选列表，valid_cudagraph_attrs 是运行时验证后"实际存在且是 tensor"的有效列表。这种设计允许不同配置（如是否使用 shared expert gate）复用同一份代码，同时确保 graph 输出结构的一致性。
+```
+cudagraph_attrs (候选，静态定义):
+┌─────────────────────────────────────────────────────┐
+│ tokens_per_expert                                   │
+│ input_splits                                        │
+│ output_splits                                       │
+│ routing_map                                         │
+│ shared_experts.gate_score      ← 可能不存在        │
+│ shared_experts.cached_fc1_input ← 可能不存在       │
+└─────────────────────────────────────────────────────┘
+                    │
+                    ↓ 运行时过滤
+                    
+valid_cudagraph_attrs (有效，运行时确定):
+┌─────────────────────────────────────────────────────┐
+│ tokens_per_expert              ✓ 存在且是 tensor   │
+│ input_splits                   ✓ 存在且是 tensor   │
+│ output_splits                  ✓ 存在且是 tensor   │
+│ routing_map                    ✓ 存在且是 tensor   │
+│ (shared_experts.gate_score 被过滤掉 - 不存在)       │
+│ (shared_experts.cached_fc1_input 被过滤掉)         │
+└─────────────────────────────────────────────────────┘
+```
+
+至此，我们已经完全理解了CUDA Graph Capture的流程，做完这套流程后，TransformerLayer下的cuda_graphs属性已经设置好了每个microbatch的graph callable闭包了，我们看一下Replay情况下，TransformerLayer的`_te_cuda_graph_replay`在做什么事情：
+```python
+def _te_cuda_graph_replay(self, *args, **kwargs):
+    # 1. 调用父类 replay
+    cuda_graph_output = super()._te_cuda_graph_replay(*args, **kwargs)
+    
+    if 'moe_router' in scope:
+        # 2. 解析输出
+        hidden_states, probs, routing_map_or_residual = cuda_graph_output[:3]
+        
+        # 3. 恢复 dispatcher 属性
+        for i, attr_name in enumerate(valid_cudagraph_attrs):
+            setattr(dispatcher, attr_name, cuda_graph_output[3+i])
+        
+        # 4. 设置 tensor store
+        self.mlp.cudagraph_tensor_store.set(
+            hidden_states=hidden_states,
+            probs=probs,
+            residual=residual,
+        )
+        
+        # 5. 继续 MoE forward
+        mlp_output = self.mlp(hidden_states)
+        
+        # 6. 清理 store
+        self.mlp.cudagraph_tensor_store.clear()
+```
+其中父类`GraphableMegatronModule`就是在根据当前的microbatch index来设置hook（后面会讲到）和调用闭包。
+```python
+    def _te_cuda_graph_replay(self, *args, **kwargs):
+        """
+        CUDA graph replay for this layer and microbatch `self.current_microbatch` using TE
+        interface. TransformerEngine versions>=1.10 allow keyword arguments with CUDA graph.
+        However, CUDA graph accepts only Tensor inputs.
+        Hence, check if the arguments are all tensors.
+        """
+		# ...
+        cg_index = getattr(self, 'current_microbatch', 0) % len(self.cuda_graphs)
+        cudagraph_args, cudagraph_kwargs = self._get_te_cuda_graph_replay_args(*args, **kwargs)
+
+        for hook, hook_args in self.cuda_graph_manual_hooks:
+            hook(*hook_args)
+        return self.cuda_graphs[cg_index](*cudagraph_args, **cudagraph_kwargs)
+```
+我们可以看到TransformerLayer的会将闭包的结果保存到一个特殊的类MoECudaGraphTensorStore来统一保存CUDA Graph的结果，接着会调用原先应该执行的mlp函数，接下来的问题是，mlp函数的部分计算已经在CUDA Graph里面算过了，怎么跳过这些部分呢？
+
+答案还是通过装饰器的方式。只不过现在不是抛出异常而是直接从MoECudaGraphTensorStore读取即可：
+```python
+def maybe_skip_or_early_return_by_cudagraph(step_condition):
+    """
+    step_condition 可以是:
+    - "shared_experts_compute": 跳过 shared expert 计算
+    - "route": 跳过 router 计算（或在 capture 时提前返回）
+    - "preprocess": 跳过 preprocess 计算（或在 capture 时提前返回）
+    """
+    
+    def maybe_raise_signal(moe_layer, **kwargs):
+        """Capture 阶段：检查是否需要提前返回"""
+        if (
+            moe_layer.config.cuda_graph_impl == "transformer_engine"
+            and moe_layer.training
+            and is_graph_capturing()
+        ):
+            if step_condition == "route" and 'moe_router' in scope and 'moe_preprocess' not in scope:
+                raise MoECudaGraphPartialCaptureSignal(moe_layer, "route", **kwargs)
+            elif step_condition == "preprocess" and 'moe_preprocess' in scope:
+                raise MoECudaGraphPartialCaptureSignal(moe_layer, "preprocess", **kwargs)
+    
+    def decorator(func):
+        def wrapped_func(moe_layer, *args, **kwargs):
+            # 非 cudagraph 路径：直接执行
+            if not is_graph_capturing() and moe_layer.cudagraph_tensor_store.is_empty():
+                return func(moe_layer, *args, **kwargs)
+            
+            # Capture 和 Replay 路径
+            if step_condition == "route":
+                if moe_layer.cudagraph_tensor_store.probs is None:
+		            # Capture 阶段
+                    # 执行 router 计算
+                    probs, routing_map = func(moe_layer, *args, **kwargs)
+                    # 可能抛出异常提前返回
+                    maybe_raise_signal(moe_layer, probs=probs, routing_map=routing_map)
+                else:
+                    # Replay 阶段：从 store 读取，跳过计算
+                    probs = moe_layer.cudagraph_tensor_store.probs
+                    routing_map = moe_layer.cudagraph_tensor_store.routing_map
+                return probs, routing_map
+            
+            # 类似处理 "preprocess" 和 "shared_experts_compute"
+        return wrapped_func
+    return decorator
+```
+至此，我们完成理解了MoE Partial Capture/Replay的工作流程。
+
 ## 显存占用与 CUDA Graph 数量分析
 
 结合上文分析，下面以表格形式梳理不同配置下 CUDA Graph 的数量以及fwd graph static input buffer以及中间变量的显存大小。其中，CUDA Graph是 CUDA 操作的录制，录制部分占用的显存很小，在实现的时候每个 microbatch有独立的graph；但是fwd graph static input buffer以及中间变量的显存是需要根据PP实现microbatch之间共享的，使得和PP而不是num of microbatches成正比。
@@ -544,6 +943,9 @@ sequenceDiagram
 
 注意到很多地方都和num_layers相关，这是因为我们采用partial cuda graph逐layer进行capture，因此我们需要设置和num_layers成正比的同步点，这提示我们加入我们后面可以尽可能capture更完整的模型部分，我们额外需要的显存也会更小。
 
+# 外部训练模块基础设施
+
+
 # 使用CUDA Graph时常见的易错点
 
 1. CUDA Graph的本质是**捕捉某个CUDA stream上若干kernel launches和memory copy操作**，它无法捕捉到任何CPU上的操作或逻辑。
@@ -553,4 +955,5 @@ sequenceDiagram
     s += a.sum() # s和a为GPU上的tensor
     cnt += 1     # cnt是普通的Python计数器
 ```
-在capture阶段，这两行代码都会被执行，但在replay阶段，`s += a.sum()`这样的GPU操作会被执行，而`cnt += 1`这类纯CPU的操作则不会再执行。换句话说，CUDA Graph的replay只会按图执行可捕获的GPU操作，至于代码表面上的其他Python逻辑（如计数器递增），在replay过程中是无效的。此外，诸如if分支等控制流结构，也只会按capture阶段实际走过的路径，把当时分支里的GPU操作捕捉进图，replay时不会根据新的条件判断重新分支。
+在capture阶段，这两行代码都会被执行，但在replay阶段，`s += a.sum()`这样的GPU操作会被执行，而`cnt += 1`这类纯CPU的操作则不会再执行。换句话说，CUDA Graph的replay只会按图执行可捕获的GPU操作，至于代码表面上的其他Python逻辑（如计数器递增），在replay过程中是无效的。
+2. 诸如if分支等控制流结构，会按capture阶段实际走过的路径，把当时分支里的GPU操作捕捉进图，replay时不会根据新的条件判断重新分支。为了避免动态分支发生在CPU上，可以使用 torch.where 替代 if-else。核心思想是将分支判断搬到GPU上。
