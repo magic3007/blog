@@ -483,6 +483,9 @@ if _reuse_graph_input_output_buffers:
                 if ceil(c_id) == c_id:
                     bwd_idx[m_chunk] += 1
 ```
+
+
+
 # MoE Partial Capture/Replay的工作流程
 
 上面的叙述适用于任意layer，对于dense layer这种可以完全被capture没有太大的问题，对于MoE layer，我们需要根据config配置capture部分操作。为了实现这部分功能，我们基于基于 Python 异常机制实现 graph 边界的动态中断与恢复。首先我们看MoE partial capture/replay的总体工作流程如下：
@@ -922,7 +925,93 @@ def maybe_skip_or_early_return_by_cudagraph(step_condition):
 ```
 至此，我们完成理解了MoE Partial Capture/Replay的工作流程。
 
-## 显存占用与 CUDA Graph 数量分析
+最后一个需要注意一点是，Megatron-LM一般还会有一个forward pre-hooks功能，用于在模块前向传播之前执行某些操作，比如开启Distributed Optimizer （类似 ZeRO-1/2）时会更新本地1/N的参数，其他参数需要all-gather操作，这个是放在forward pre-hooks里面的。
+正常来说， 触发 forward_pre_hooks是放在`module.__call__(input)`里面的，现在我们改动了`module.__call__(input)`，执行我们的_te_cuda_graph_capture和_te_cuda_graph_replay，因此我们也要在_te_cuda_graph_replay里面加入这部分功能：
+```python
+# 1. 收集需要手动触发的 hooks
+def setup_manual_hooks(self, make_hook_func):
+    self.cuda_graph_manual_hooks = []
+    
+    # 找到所有包含参数的子模块
+    for submodule in self._get_submodules_under_cudagraphs():
+        for module in submodule.modules():
+            if next(module.parameters(recurse=False), None) is not None:
+                # 为每个有参数的模块创建 hook
+                self.cuda_graph_manual_hooks.append(
+                    (make_hook_func(), (module,))  # (hook函数, 参数)
+                )
+
+# 2. 在 graph replay 前手动触发
+def _te_cuda_graph_replay(self, *args, **kwargs):
+    # 手动触发所有 hooks
+    for hook, hook_args in self.cuda_graph_manual_hooks:
+        hook(*hook_args)  # 等待参数 All-Gather 完成
+    
+    # 现在参数已经准备好，可以安全地 replay graph
+    return self.cuda_graphs[cg_index](*cudagraph_args, **cudagraph_kwargs)
+```
+其收集的时机是：
+```python
+# training.py 中的调用顺序
+cuda_graph_helper = TECudaGraphHelper(...)
+cuda_graph_helper.create_cudagraphs()           # 1. 创建 CUDA Graphs
+cuda_graph_helper.cuda_graph_set_manual_hooks() # 2. 设置 Manual Hooks
+# 然后开始训练循环
+```
+
+
+
+# 训练循环集成
+
+最后我们来看一下，我们这套方法如何融入在正常的训练流程里面。
+首先会在训练最开始的阶段创建TECudaGraphHelper：
+```python
+if args.cuda_graph_impl == "transformer_engine":
+    cuda_graph_helper = TECudaGraphHelper(
+        model=model,
+        config=config,
+        seq_length=seq_length,
+        micro_batch_size=micro_batch_size,
+        optimizers=optimizers,
+    )
+```
+在TECudaGraphHelper的初始化阶段会收集可被partial cuda graph的layer：
+```python
+class TECudaGraphHelper:
+    def __init__(self, model, config, seq_length, micro_batch_size, ...):
+        # 收集 graphable layers
+        for layer in decoder.layers:
+            if _layer_is_graphable(layer, config):
+                self.flattened_callables.append(layer)
+```
+在第一个iteration结束时，就可以设置hooks了：
+```python
+# 在第一个 iteration 结束时
+if args.cuda_graph_impl == "transformer_engine":
+    cuda_graph_helper.cuda_graph_set_manual_hooks()
+```
+在运行config里面指定的warmup iteartion后，就可以创建cuda graph并分配到各层了：
+```python
+def create_cudagraphs(self):
+    start_time = self._start_capturing()
+    
+    sample_args, kwargs = self._get_cuda_graph_input_data()
+    graphs = make_graphed_callables(
+        tuple(self.flattened_callables),
+        sample_args,
+        **kwargs
+    )
+    
+    # 分配到各层
+    for layer in layers:
+        layer.cuda_graphs = [graphs[...] for batch in range(num_microbatches)]
+    
+    self._finish_capturing(start_time)
+
+```
+至此，我们完成理解了Megatron-LM里面的partial CUDA Graph的工作流程。
+
+# 显存占用与 CUDA Graph 数量分析
 
 结合上文分析，下面以表格形式梳理不同配置下 CUDA Graph 的数量以及fwd graph static input buffer以及中间变量的显存大小。其中，CUDA Graph是 CUDA 操作的录制，录制部分占用的显存很小，在实现的时候每个 microbatch有独立的graph；但是fwd graph static input buffer以及中间变量的显存是需要根据PP实现microbatch之间共享的，使得和PP而不是num of microbatches成正比。
 
@@ -943,10 +1032,10 @@ def maybe_skip_or_early_return_by_cudagraph(step_condition):
 
 注意到很多地方都和num_layers相关，这是因为我们采用partial cuda graph逐layer进行capture，因此我们需要设置和num_layers成正比的同步点，这提示我们加入我们后面可以尽可能capture更完整的模型部分，我们额外需要的显存也会更小。
 
-# 外部训练模块基础设施
-
 
 # 使用CUDA Graph时常见的易错点
+
+另外，补充一些使用CUDA Graph常见的易错点。
 
 1. CUDA Graph的本质是**捕捉某个CUDA stream上若干kernel launches和memory copy操作**，它无法捕捉到任何CPU上的操作或逻辑。
 
