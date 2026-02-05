@@ -9,7 +9,6 @@ tags:
 mathjax: true
 mathjax_autoNumber: true
 mermaid: true
-## Chart
 chart: true
 aside:
   toc: true
@@ -498,26 +497,22 @@ sequenceDiagram
     participant Dispatcher as TokenDispatcher
     participant Store as CudagraphTensorStore
 
-    rect rgb(200, 220, 255)
-        note over TL,Store: CUDA Graph Capture Phase
-        TL->>MoE: forward(hidden_states)
-        MoE->>Router: route()
-        Router-->>MoE: probs, routing_map
-        MoE->>Dispatcher: preprocess()
-        Dispatcher-->>MoE: raise PartialCaptureSignal
-        MoE-->>TL: early_return_outputs
-    end
+    Note over TL,Store: CUDA Graph Capture Phase
+    TL->>MoE: forward(hidden_states)
+    MoE->>Router: route()
+    Router-->>MoE: probs, routing_map
+    MoE->>Dispatcher: preprocess()
+    Dispatcher-->>MoE: raise PartialCaptureSignal
+    MoE-->>TL: early_return_outputs
 
-    rect rgb(220, 255, 220)
-        note over TL,Store: CUDA Graph Replay Phase
-        TL->>TL: replay graph → outputs
-        TL->>Store: set(hidden_states, probs, routing_map, residual)
-        TL->>MoE: forward(hidden_states)
-        MoE->>Store: check tensor_store
-        Store-->>MoE: skip router/preprocess
-        MoE->>MoE: dispatch → compute → combine
-        MoE-->>TL: output
-    end
+    Note over TL,Store: CUDA Graph Replay Phase
+    TL->>TL: replay graph outputs
+    TL->>Store: set(hidden_states, probs, routing_map, residual)
+    TL->>MoE: forward(hidden_states)
+    MoE->>Store: check tensor_store
+    Store-->>MoE: skip router/preprocess
+    MoE->>MoE: dispatch, compute, combine
+    MoE-->>TL: output
 ```
 
 
