@@ -525,6 +525,8 @@ sequenceDiagram
 * **异常信号机制**：在capture阶段使用 `MoECudaGraphPartialCaptureSignal` 实现优雅的提前返回，只捕获静态部分（attention、router、preprocess）
 * **状态恢复机制**：在 replay 阶段，使用 `MoECudaGraphTensorStore` 跳过已计算部分
 
+## 实现MoE的Partial Capture：装饰器+异常
+
 我们首先自顶向下来看CUDA Graph Capture的过程。
 首先是最外层的`TransformerLayer`, TransformerLayer原本继承自`MegatronModule`, 现在改成继承自`GraphableMegatronModule`。`GraphableMegatronModule` 是支持 CUDA Graph 的 Megatron 模块基类，目前被 TransformerLayer 和 MambaLayer 继承。
 在初始化中，我们存储记录每个microbatch的graph callable（就是上文描述过的闭包）以及手动hook（后面会描述）：
@@ -831,6 +833,9 @@ valid_cudagraph_attrs (有效，运行时确定):
 └─────────────────────────────────────────────────────┘
 ```
 
+
+## 实现MoE的Partial Replay：装饰器+状态恢复
+
 至此，我们已经完全理解了CUDA Graph Capture的流程，做完这套流程后，TransformerLayer下的cuda_graphs属性已经设置好了每个microbatch的graph callable闭包了，我们看一下Replay情况下，TransformerLayer的`_te_cuda_graph_replay`在做什么事情：
 ```python
 def _te_cuda_graph_replay(self, *args, **kwargs):
@@ -925,6 +930,8 @@ def maybe_skip_or_early_return_by_cudagraph(step_condition):
 ```
 至此，我们完成理解了MoE Partial Capture/Replay的工作流程。
 
+## 为什么要手动设置hook？
+
 最后一个需要注意一点是，Megatron-LM一般还会有一个forward pre-hooks功能，用于在模块前向传播之前执行某些操作，比如开启Distributed Optimizer （类似 ZeRO-1/2）时会更新本地1/N的参数，其他参数需要all-gather操作，这个是放在forward pre-hooks里面的。
 正常来说， 触发 forward_pre_hooks是放在`module.__call__(input)`里面的，现在我们改动了`module.__call__(input)`，执行我们的_te_cuda_graph_capture和_te_cuda_graph_replay，因此我们也要在_te_cuda_graph_replay里面加入这部分功能：
 ```python
@@ -959,9 +966,7 @@ cuda_graph_helper.cuda_graph_set_manual_hooks() # 2. 设置 Manual Hooks
 # 然后开始训练循环
 ```
 
-
-
-# 训练循环集成
+# 如何继承到训练迭代中？
 
 最后我们来看一下，我们这套方法如何融入在正常的训练流程里面。
 首先会在训练最开始的阶段创建TECudaGraphHelper：
