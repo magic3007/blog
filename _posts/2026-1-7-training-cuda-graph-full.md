@@ -71,6 +71,7 @@ __global__ void setGroupedGemmArguments_fp16bf16(int num_experts, const int64_t 
 ```
 
 对于第一点（实现了在B系列上支持cuBLAS作为后端），其整体流程如下：
+
 ```mermaid
 flowchart TB
     subgraph CPU ["CPU 端"]
@@ -98,9 +99,11 @@ flowchart TB
     B1c -.->|GPU mem| B2
     B2 --> B2a
 ```
+
 这个函数名为`generic_moe_gemm_kernelLauncher_fp16bf16`，分为 4 个主要阶段：
 
 * 阶段 1：定义CUTLASS 类型。使用 CUTLASS 的 Builder 模式定义高性能 Grouped GEMM kernel 的所有类型参数。
+
 ```c++
 // 定义 GEMM 问题形状
 using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;  // <M,N,K>
@@ -120,6 +123,7 @@ using GemmGrouped = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel2SM>;
 ```
 
 * 阶段 2：Workspace 内存布局。在预分配的 GPU workspace 中划分内存区域，用于存储各 expert 的参数。
+
 ```c++
 // 在 workspace 中分配各种指针数组和 stride 数组
 auto ptr_A_list = ...;     // 每个 expert 的 A 矩阵指针
@@ -135,6 +139,7 @@ auto problem_sizes = ...;  // 每个 expert 的 GEMM shape (M, N, K)
 - ptr_A_list[i] —— 每个 expert 的输入指针
 - ptr_D_list[i] —— 每个 expert 的输出指针
 - 各种 stride
+
 ```c++
 setGroupedGemmArguments_fp16bf16<<<1, 32, 0, stream>>>(
     num_experts, gemm_m_per_expert,  // <-- m_splits (GPU tensor)
@@ -144,6 +149,7 @@ setGroupedGemmArguments_fp16bf16<<<1, 32, 0, stream>>>(
 ```
 
 * 阶段 4：启动 CUTLASS Grouped GEMM。使用阶段 3 在 GPU 上设置好的参数，启动 CUTLASS Grouped GEMM kernel。
+
 ```c++
 // 构建 CUTLASS 参数
 args = typename GemmGrouped::Arguments{
