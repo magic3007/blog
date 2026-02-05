@@ -70,37 +70,7 @@ __global__ void setGroupedGemmArguments_fp16bf16(int num_experts, const int64_t 
 }
 ```
 
-对于第一点（实现了在B系列上支持cuBLAS作为后端），其整体流程如下：
-
-```mermaid
-flowchart TB
-    subgraph CPU ["CPU 端"]
-        A1["定义CUTLASS类型"]
-        A2["划分workspace内存"]
-        A3["启动setArgs kernel"]
-        A4["构建Arguments"]
-        A5["启动Grouped GEMM"]
-    end
-    
-    subgraph GPU ["GPU 端"]
-        B1["setArgs kernel"]
-        B1a["读取m_splits"]
-        B1b["计算指针偏移"]
-        B1c["填充sizes/ptrs"]
-        B2["Grouped GEMM"]
-        B2a["执行多个GEMM"]
-    end
-    
-    A1 --> A2 --> A3
-    A3 -.->|launch| B1
-    B1 --> B1a --> B1b --> B1c
-    A3 --> A4 --> A5
-    A5 -.->|launch| B2
-    B1c -.->|GPU mem| B2
-    B2 --> B2a
-```
-
-这个函数名为`generic_moe_gemm_kernelLauncher_fp16bf16`，分为 4 个主要阶段：
+对于第一点（实现了在B系列上支持cuBLAS作为后端），相关函数的函数名为`generic_moe_gemm_kernelLauncher_fp16bf16`，主要分为 4 个主要阶段：
 
 * 阶段 1：定义CUTLASS 类型。使用 CUTLASS 的 Builder 模式定义高性能 Grouped GEMM kernel 的所有类型参数。
 
