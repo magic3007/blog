@@ -1,3 +1,494 @@
 /* start custom scss snippet */
 
+// ========================================
+// Typography
+// ========================================
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+// ========================================
+// Header
+// ========================================
+.header {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  a {
+    font-weight: 500 !important;
+    letter-spacing: 0.02em;
+  }
+}
+
+.header__brand > a {
+  font-weight: 700 !important;
+  font-size: 1.35rem !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.navigation__item {
+  a {
+    transition: color 0.2s ease;
+    position: relative;
+  }
+
+  &::after {
+    transition: all 0.3s ease !important;
+  }
+}
+
+.navigation__item--active {
+  a {
+    color: #667eea !important;
+  }
+  &::after {
+    border-bottom-color: #667eea !important;
+    background: linear-gradient(135deg, #667eea, #764ba2) !important;
+    border: none !important;
+    height: 3px !important;
+    border-radius: 3px !important;
+  }
+}
+
+// ========================================
+// Article List (Home Page Cards)
+// ========================================
+.layout--home .item {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border-radius: 12px !important;
+  padding: 1.5rem !important;
+  margin-bottom: 0.5rem;
+  border: 1px solid transparent;
+
+  &:hover {
+    background: rgba(102, 126, 234, 0.03);
+    border-color: rgba(102, 126, 234, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -8px rgba(102, 126, 234, 0.15);
+  }
+}
+
+.layout--home .item__header {
+  a {
+    font-weight: 600 !important;
+    font-size: 1.25rem !important;
+    color: #1a1a2e !important;
+    text-decoration: none !important;
+    transition: color 0.2s ease;
+    line-height: 1.4 !important;
+
+    &:hover {
+      color: #667eea !important;
+    }
+  }
+}
+
+.layout--home .item__meta {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.78rem !important;
+  color: #9ca3af !important;
+  letter-spacing: 0.01em;
+}
+
+// ========================================
+// Article Content
+// ========================================
+.article__content {
+  font-size: 1.05rem;
+  line-height: 1.85 !important;
+  color: #2d3748;
+
+  // Headings
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    color: #1a202c;
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    font-size: 2.2rem !important;
+  }
+
+  h2 {
+    font-size: 1.7rem !important;
+    padding-bottom: 0.4em;
+    border-bottom: 2px solid #edf2f7 !important;
+  }
+
+  h3 {
+    font-size: 1.35rem !important;
+  }
+
+  // Paragraphs
+  p {
+    margin-bottom: 1.3em;
+  }
+
+  // Links
+  a {
+    color: #667eea;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+    transition: all 0.2s ease;
+
+    &:hover {
+      color: #5a67d8;
+      border-bottom-color: #5a67d8;
+    }
+  }
+
+  // Blockquotes
+  blockquote {
+    position: relative;
+    padding: 1rem 1.5rem !important;
+    margin: 1.8em 0 !important;
+    font-size: 0.95rem !important;
+    color: #4a5568 !important;
+    background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%);
+    border-left: 4px solid #667eea !important;
+    border-radius: 0 8px 8px 0;
+
+    p {
+      margin: 0.5em 0 !important;
+    }
+
+    strong {
+      color: #2d3748;
+    }
+  }
+
+  // Inline code
+  code {
+    font-family: 'JetBrains Mono', Menlo, Monaco, Consolas, monospace !important;
+    font-size: 0.88em !important;
+    padding: 0.15em 0.45em !important;
+    background: #f1f5f9 !important;
+    border-radius: 5px !important;
+    color: #e53e3e;
+    font-weight: 500;
+  }
+
+  // Code blocks
+  pre {
+    border-radius: 10px !important;
+
+    > code {
+      font-family: 'JetBrains Mono', Menlo, Monaco, Consolas, monospace !important;
+      font-size: 0.88rem !important;
+      line-height: 1.7 !important;
+      color: inherit;
+      font-weight: 400;
+    }
+  }
+
+  .highlighter-rouge > .highlight,
+  figure.highlight {
+    margin: 1.5em 0 !important;
+
+    > pre {
+      border-radius: 10px !important;
+      background: #1e1e2e !important;
+      padding: 1.25rem !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+
+      > code {
+        color: #e6edf3 !important;
+        background: transparent !important;
+        padding: 0 !important;
+
+        // 提高语法高亮对比度
+        .c, .cm, .cp, .c1, .cs { color: #8b949e !important; }  /* 注释 - 柔和灰 */
+        .k, .kc, .kd, .kp, .kr { color: #ff7eb6 !important; }  /* 关键字 - 亮粉 */
+        .kn { color: #78dce8 !important; }                       /* import/from - 亮青 */
+        .kt { color: #ffd866 !important; }                       /* 类型 - 亮黄 */
+        .n, .nb, .ni, .nl, .py, .bp { color: #e6edf3 !important; } /* 普通名称 - 亮白 */
+        .nf, .nx { color: #82aaff !important; }                  /* 函数 - 亮蓝 */
+        .nc, .nn { color: #ffd866 !important; }                  /* 类/命名空间 - 亮黄 */
+        .na { color: #82aaff !important; }                       /* 属性 - 亮蓝 */
+        .no, .ne, .nv, .vc, .vg, .vi { color: #ff7eb6 !important; } /* 常量/变量 - 亮粉 */
+        .nd, .nt { color: #78dce8 !important; }                  /* 装饰器/标签 - 亮青 */
+        .s, .s1, .s2, .sb, .sh, .sx, .sr, .ss { color: #a9dc76 !important; } /* 字符串 - 亮绿 */
+        .sd { color: #8b949e !important; }                       /* 文档字符串 - 柔和灰 */
+        .se, .si { color: #fc9867 !important; }                  /* 转义/插值 - 亮橙 */
+        .m, .mf, .mh, .mi, .mo, .il { color: #fc9867 !important; } /* 数字 - 亮橙 */
+        .l, .ld { color: #fc9867 !important; }                   /* 字面量 - 亮橙 */
+        .o, .ow { color: #78dce8 !important; }                   /* 运算符 - 亮青 */
+        .p { color: #e6edf3 !important; }                        /* 标点 - 亮白 */
+        .err { color: #ff6188 !important; }                      /* 错误 - 红 */
+        .gd { color: #ff6188 !important; }                       /* 删除 */
+        .gi { color: #a9dc76 !important; }                       /* 插入 */
+        .gh { color: #e6edf3 !important; font-weight: bold; }    /* 标题 */
+        .gu { color: #78dce8 !important; font-weight: bold; }    /* 子标题 */
+        .w { color: #e6edf3 !important; }                        /* 空白 */
+        .sc { color: #e6edf3 !important; }                       /* 字符 */
+      }
+    }
+  }
+
+  figure.highlight {
+    &::before {
+      background: #1e1e2e !important;
+      color: rgba(255, 255, 255, 0.4) !important;
+      border-radius: 10px 10px 0 0 !important;
+      font-size: 0.75rem !important;
+      letter-spacing: 0.1em;
+    }
+
+    > pre {
+      border-top-left-radius: 0 !important;
+      border-top-right-radius: 0 !important;
+    }
+  }
+
+  // Images
+  img:not(.emoji) {
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+    &:hover {
+      transform: scale(1.01);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+  }
+
+  // Tables
+  table {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+
+    thead, tfoot {
+      background: linear-gradient(135deg, #f8fafc, #edf2f7) !important;
+    }
+
+    th {
+      font-weight: 600 !important;
+      color: #2d3748;
+      text-transform: uppercase;
+      font-size: 0.85em;
+      letter-spacing: 0.05em;
+    }
+
+    th, td {
+      border-color: #e2e8f0 !important;
+      padding: 0.75rem 1rem !important;
+    }
+
+    tbody tr {
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: #f7fafc;
+      }
+    }
+  }
+
+  // Lists
+  ul, ol {
+    li {
+      margin-bottom: 0.4em;
+    }
+  }
+
+  // Horizontal rules
+  hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+    margin: 2.5em 0;
+  }
+}
+
+// ========================================
+// Article Header
+// ========================================
+.article__header {
+  h1 {
+    font-weight: 800 !important;
+    letter-spacing: -0.03em;
+    line-height: 1.25 !important;
+    color: #1a202c !important;
+  }
+}
+
+// ========================================
+// Article Info (date, tags, etc.)
+// ========================================
+.article__info {
+  font-size: 0.88rem;
+  color: #9ca3af;
+
+  .article__clickable {
+    transition: color 0.2s ease;
+  }
+}
+
+// ========================================
+// Tags
+// ========================================
+.tags {
+  a, .button {
+    border-radius: 20px !important;
+    font-size: 0.82rem !important;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+    padding: 0.2em 0.8em !important;
+
+    &:hover {
+      background: #667eea !important;
+      color: white !important;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+    }
+  }
+}
+
+// ========================================
+// Footer
+// ========================================
+.footer {
+  background: #f8fafc !important;
+  border-top: 1px solid #e2e8f0;
+  color: #64748b !important;
+
+  a {
+    color: #667eea !important;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #5a67d8 !important;
+    }
+  }
+}
+
+.footer__author-links {
+  .author-links {
+    a {
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        color: #667eea !important;
+      }
+    }
+  }
+}
+
+// ========================================
+// Sidebar / TOC
+// ========================================
+.toc {
+  a {
+    color: #4a5568;
+    transition: color 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      color: #667eea;
+    }
+  }
+
+  .toc--active {
+    a {
+      color: #667eea !important;
+    }
+  }
+}
+
+// ========================================
+// Search
+// ========================================
+.search {
+  input {
+    border-radius: 24px !important;
+    border: 2px solid #e2e8f0 !important;
+    padding: 0.6rem 1.2rem !important;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+
+    &:focus {
+      border-color: #667eea !important;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+      outline: none;
+    }
+  }
+}
+
+// ========================================
+// Pagination
+// ========================================
+.pagination {
+  .button {
+    border-radius: 8px !important;
+    transition: all 0.2s ease;
+    font-weight: 500;
+
+    &.button--primary {
+      background: #667eea !important;
+      border-color: #667eea !important;
+
+      &:hover {
+        background: #5a67d8 !important;
+        border-color: #5a67d8 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+      }
+    }
+  }
+}
+
+// ========================================
+// Selection color
+// ========================================
+::selection {
+  background: rgba(102, 126, 234, 0.2);
+  color: inherit;
+}
+
+// ========================================
+// Scrollbar (Webkit)
+// ========================================
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+
+  &:hover {
+    background: #a0aec0;
+  }
+}
+
+// ========================================
+// Smooth transitions for all interactive elements
+// ========================================
+a, button, .button, .card, .item {
+  transition: all 0.2s ease;
+}
+
 /* end custom scss snippet */
