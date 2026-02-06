@@ -23,11 +23,11 @@ aside:
 实际上，完成上述两项优化后，在MoE强制负载均衡（load balancing）的设定下，已能够实现真正意义上的Full CUDA Graph。然而，由于HybridEP与CUDA Graph兼容性提升带来的静态缓冲区约束，我们还需进一步实现高效的Expert权重分发及梯度聚合机制，以充分释放CUDA Graph的性能潜力。
 
 # 如何让TE启动grouped GEMM不需要GPU-CPU同步？
-在MoE中，由于每个experts分到的token数量不同，实际上我们是在做grouped GEMM，[通常我们会调用transformer engine （TE）的grouped GEMM](https://github.com/NVIDIA/Megatron-LM/blob/1b110768dc0d890a61cc8416b1f8f02e42930111/megatron/core/transformer/moe/experts.py#L512)，也就是在[调用TEd的`pytorch.GroupedLinear`](https://github.com/NVIDIA/Megatron-LM/blob/1b110768dc0d890a61cc8416b1f8f02e42930111/megatron/core/extensions/transformer_engine.py#L1459)类。
+在MoE中，由于每个experts分到的token数量不同，实际上我们是在做grouped GEMM，[通常我们会调用transformer engine （TE）的grouped GEMM](https://github.com/NVIDIA/Megatron-LM/blob/1b110768dc0d890a61cc8416b1f8f02e42930111/megatron/core/transformer/moe/experts.py#L512)，也就是在[调用TE的`pytorch.GroupedLinear`](https://github.com/NVIDIA/Megatron-LM/blob/1b110768dc0d890a61cc8416b1f8f02e42930111/megatron/core/extensions/transformer_engine.py#L1459)类。
 一般来说，TE实现grouped GEMM主要是通过两个后端实现方式。
 1. 调用cuBLAS作为后端实现方式。但是当前cuBLAS实际上并没有真正实现单个kernel launch grouped GEMM的形式，实际上[TE是循环调用多次cuBLAS kernel并分发到不同CUDA stream上实现的](https://github.com/NVIDIA/TransformerEngine/blob/5671fd3675906cda1ade26c24a65d3dedd88eb89/transformer_engine/common/gemm/cublaslt_gemm.cu#L984-L1009)（见下图的左图）。
 2. 另外一个后端实现方式是cutlass。cutlass是有单个kernel launch grouped GEMM的支持的（见下图的右图）。
-{% include img.html src="2025-12-30-training-cuda-graph-partial.assets/1040025031s2kp8r11k0a6r18ok.webp" alt="1589443681801" %}
+![grouped GEMM backend]({{ "/assets/img/2025-12-30-training-cuda-graph-partial.assets/1040025031s2kp8r11k0a6r18ok.webp" | relative_url }})
 
 我们可以通过[环境变量`NVTE_USE_CUTLASS_GROUPED_GEMM`](https://github.com/NVIDIA/TransformerEngine/blob/5671fd3675906cda1ade26c24a65d3dedd88eb89/transformer_engine/common/gemm/cublaslt_gemm.cu#L1058)来控制使用cuBLAS还是cutlass。但是目前至少在TE 2.12版本里面，这个环境变量[只对H系列GPU起作用](https://github.com/NVIDIA/TransformerEngine/blob/5671fd3675906cda1ade26c24a65d3dedd88eb89/transformer_engine/common/gemm/cublaslt_gemm.cu#L1067C1-L1071C4)，在B系列上即使设置了这个环境变量也还是会fallback到使用cuBLAS中。在H系列芯片中，multi-stream的方式做grouped GEMM更快，但是在B系列芯片上，cuBLAS更快，因此我们后面的实现都考虑是cuBLAS作为后端。
 

@@ -13,8 +13,8 @@ title: A Guide to Homomorphic Encryption Library SEAL
 
 ## Overview
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589439585727.png" alt="1589439585727" %} 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589439841029.png" alt="1589439841029" %} 
+![1589439585727]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589439585727.png" | relative_url }})
+![1589439841029]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589439841029.png" | relative_url }})
 
 - Number of message slots: $N$ in BFV, $\frac{N}{2}$ in CKKS(in later section)
 
@@ -105,11 +105,11 @@ The time complexity is $O(n \log n \log Q)$ in terms of integer add/multiply mod
 
 So here is combining operations:
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589443681801.png" alt="1589443681801" %} 
+![1589443681801]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589443681801.png" | relative_url }})
 
 #### Circuit Optimization
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589444042526.png" alt="1589444042526" %} 
+![1589444042526]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589444042526.png" | relative_url }})
 
 Notice that ciphertext-plaintext addition & multiplication introduce less noise. And generally, the length of critical path in above computation graph determines the noise.
 
@@ -165,7 +165,7 @@ ct &\leftarrow (pk_0u+e_0+\frac{Qm}{t}, pk_1u+e_1) \in R_Q^2
 \end{align}
 $$
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448487881.png" alt="1589448487881" %} 
+![1589448487881]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448487881.png" | relative_url }})
 
 Decryption: 
 
@@ -177,11 +177,11 @@ $$
 Noise in decryption can be considered Gaussian.
 
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448829024.png" alt="1589448829024" %} 
+![1589448829024]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448829024.png" | relative_url }})
 
 #### How to Setup Security Parameters?
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448955961.png" alt="1589448955961" %} 
+![1589448955961]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448955961.png" | relative_url }})
 
 Usually we require some attempts to find the proper $Q$. The best way is just start with a $Q$, try to evaluate the circuit, if it fails, increase the Q.
 
@@ -189,38 +189,38 @@ Notice that the larger the $Q$ is, the less secure the scheme is. So after you h
 
 Also, you can always choose parameters according to homomorphic encryption security standard at [www.homomorphicencryption.org]( https://homomorphicencryption.org/).
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589449368171.png" alt="1589449368171" %} 
+![1589449368171]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589449368171.png" | relative_url }})
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589449416926.png" alt="1589449416926" %}
+![1589449416926]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589449416926.png" | relative_url }})
 
 #### Full-RNS Variants
 
 RNS refers to Residue Number System, which is similar to Chinese Remainder Theorem(CRT). Basically, you can represent a large integer with a set of smaller integers. 
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589465836455.png" alt="1589465836455" %}
+![1589465836455]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589465836455.png" | relative_url }})
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589465868771.png" alt="1589465868771" %} 
+![1589465868771]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589465868771.png" | relative_url }})
 
 #### Modulus Switching
 
 And there is another technology called _Modulus Switching_ that makes computation more efficient. During the computation, you can discard a prime from that $Q$, so your ciphertext got smaller in terms of coefficients.
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589466199883.png" alt="1589466199883" %} 
+![1589466199883]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589466199883.png" | relative_url }})
 
 #### How to Setup Performance Parameters?
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589466316507.png" alt="1589466316507" %} 
+![1589466316507]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589466316507.png" | relative_url }})
 
 In the example, You can use RNS by either write in four prime numbers as a vector, or just tell the SEAL to create four prime numbers having 40 bits, 40 bits, 40 bits and 50 bits, under which condition the Q size cannot be more than 170 bits.
 
 #### How to design A circuit?
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589467587157.png" alt="1589467587157" %} 
+![1589467587157]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589467587157.png" | relative_url }})
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589467876314.png" alt="1589467876314" %} 
+![1589467876314]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589467876314.png" | relative_url }})
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589467898274.png" alt="1589467898274" %} 
+![1589467898274]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589467898274.png" | relative_url }})
 
 # Misc
 
-{% include img.html src="A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448900727.png" alt="1589448900727" %} 
+![1589448900727]({{ "/assets/img/A-Guide-to-Homomorphic-Encryption-Library-SEAL.assets/1589448900727.png" | relative_url }}) 

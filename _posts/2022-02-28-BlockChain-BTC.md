@@ -12,14 +12,14 @@ mathjax: true
 - 哈希指针 (Hash Pointer):除了指明存储位置，还对存储内容进行加密，保证内容没有被篡改.
     - 「例」区块链是使用哈希指针链接的. 对于单个节点而言, 我们可以只保留最近的若干个区块和tail哈希指针; 这样当我们问其他节点要前面的区块, 可以防止其他人篡改.
 
-{% include img.html src="BlockChain%204d923/Untitled.png" alt="Untitled" %} 
+![Untitled]({{ "/assets/img/BlockChain%204d923/Untitled.png" | relative_url }})
 
 - Merkle Tree: 和二叉树(binary tree)的区别是用哈希指针代替的普通指针.
 - Merkle Proof(也称为proof of membership/inclusion): merkle tree的一个运用就是merkle proof. 比特币中的节点分为两类, 一列是全结点, 一个是轻结点. 全结点包括交易内容(block body)和哈希指针(block header); 一个是轻结点, 只保存merkle root, 比如比特币钱包.
     - 「例」对于轻结点, 利用merkle tree的性质可以以O(logn)的实际快速确认一笔交易是否已经写入区块链.
     - Proof of Non-membership: 如果对叶结点的排列顺序没有要求, 复杂度是O(n); 如果对叶结点排列顺序有要求(sorted merkle tree), 比如哈希值排序, 可以先找到查询交易的前后两个交易, 然后看这两个交易是否是相邻的即可.
 
-{% include img.html src="BlockChain%204d923/Screen_Shot_2022-02-17_at_23.18.39.png" alt="Screen Shot 2022-02-17 at 23.18.39.png" %} 
+![Screen Shot 2022-02-17 at 23.18.39]({{ "/assets/img/BlockChain%204d923/Screen_Shot_2022-02-17_at_23.18.39.png" | relative_url }})
 
 「安全性分析」
 
@@ -106,25 +106,25 @@ BTC网络的原则是easy, robust, but inefficient
 - 这里介绍三种比较经典的比特币脚本例子: P2PK, P2PKH, P2SH.
 - 比特币脚本还有一个特殊的命令`RETURN`, 利用这个命令可以产生代币, 创造digit commitment等.
 
-{% include img.html src="BlockChain%204d923/Untitled%201.png" alt="Untitled" %} 
+![Untitled 1]({{ "/assets/img/BlockChain%204d923/Untitled%201.png" | relative_url }})
 
 ## P2PK(Pay to Public Key)
 
 - 这是最简单的一种交易模式, 我们可以看到, output script给出了前一个交易收款者的公钥, input script给出了后一个交易的支付者(也就是前一个交易的收款者)的签名, 这样可以防止有人冒名顶替前一个交易的收款者(冒名顶替者给不出前一个交易收款者的公钥对应的数字签名).
 - 注意这里input script里面没有显式给出后一个交易的支付者(也就是前一个交易的收款者)的公钥, 但是结合利用input script里面的签名我们可以验证前一个交易的output script里面的公钥就是后一个交易的支付者的公钥.
 
-{% include img.html src="BlockChain%204d923/Untitled%202.png" alt="Untitled" %} 
+![Untitled 2]({{ "/assets/img/BlockChain%204d923/Untitled%202.png" | relative_url }})
 
-{% include img.html src="BlockChain%204d923/Untitled%203.png" alt="Untitled" %} 
+![Untitled 3]({{ "/assets/img/BlockChain%204d923/Untitled%203.png" | relative_url }})
 
 ## P2PKH(Pay to Public Key Hash)
 
 - 所谓地址就是公钥的哈希, 这是用得最广泛的一种. 我们可以看到, output script给出前一个交易收款者的地址(公钥的哈希)以及哈希算法, inputscript给出了后一个交易支付者的签名和公钥.
 - 就后一个交易的input script而言, P2PKH比P2PK多了一个后一个交易的支付者(也就是前一个交易的收款者)的公钥, 这是为了解决前一个交易用哈希算法隐藏了收款者公钥的问题.
 
-{% include img.html src="BlockChain%204d923/Untitled%204.png" alt="Untitled" %} 
+![Untitled 4]({{ "/assets/img/BlockChain%204d923/Untitled%204.png" | relative_url }})
 
-{% include img.html src="BlockChain%204d923/Untitled%205.png" alt="Untitled" %} 
+![Untitled 5]({{ "/assets/img/BlockChain%204d923/Untitled%205.png" | relative_url }})
 
 ## P2SH(Pay to Script Hash)
 
@@ -135,20 +135,20 @@ BTC网络的原则是easy, robust, but inefficient
 
 - 我们可以看到, redeem script是由上一个交易的input script指定的, 新交易并不需要知道redeem script的具体内容, 只需要知道哈希值. 这样的一个好处是, 创建新交易的时候可以延期按照指定之前指定的脚本内容行动, 而不用知道脚本内容, 这样的利用常见如电商, 多重签名等.
 
-{% include img.html src="BlockChain%204d923/Untitled%206.png" alt="Untitled" %} 
+![Untitled 6]({{ "/assets/img/BlockChain%204d923/Untitled%206.png" | relative_url }})
 
-{% include img.html src="BlockChain%204d923/Untitled%207.png" alt="Untitled" %} 
+![Untitled 7]({{ "/assets/img/BlockChain%204d923/Untitled%207.png" | relative_url }})
 
-{% include img.html src="BlockChain%204d923/Untitled%208.png" alt="Untitled" %} 
+![Untitled 8]({{ "/assets/img/BlockChain%204d923/Untitled%208.png" | relative_url }})
 
 「用P2SH实现多重签名」
 
 - 比如说一个公司内部有5个私钥, 规定只有给了其中3个的签名, 才允许交易.
 - 在P2SH出现之前, 用的是`CHECKMULTISIG` 这个命令, 但是现在都是用P2SH实现.
 
-{% include img.html src="BlockChain%204d923/Untitled%209.png" alt="Untitled" %} 
+![Untitled 9]({{ "/assets/img/BlockChain%204d923/Untitled%209.png" | relative_url }})
 
-{% include img.html src="BlockChain%204d923/Untitled%2010.png" alt="Untitled" %} 
+![Untitled 10]({{ "/assets/img/BlockChain%204d923/Untitled%2010.png" | relative_url }})
 
 ## Proof of Burn “死亡证明”
 
@@ -224,7 +224,7 @@ BTC网络的原则是easy, robust, but inefficient
 - 一种中心化的记账方式, 但是又能防止央行知道每一笔交易.
 - 具体是由用户来产生货币的“编号”, 但是不告诉央行.
 
-{% include img.html src="BlockChain%204d923/Untitled%2011.png" alt="Untitled" %} 
+![Untitled 11]({{ "/assets/img/BlockChain%204d923/Untitled%2011.png" | relative_url }})
 
 「零币&零钞」
 
