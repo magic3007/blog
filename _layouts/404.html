@@ -1,13 +1,91 @@
 ---
 layout: page
-title: 404
+title: "404"
 show_title: false
 ---
-<div class="layout--404">
-  <div class="sign">
-    <h1>404</h1>
-    <p>Page not found :(</p>
+
+<div class="terminal-404">
+  <div class="terminal-404__titlebar">
+    <span class="terminal-404__dot terminal-404__dot--red"></span>
+    <span class="terminal-404__dot terminal-404__dot--yellow"></span>
+    <span class="terminal-404__dot terminal-404__dot--green"></span>
+    <span class="terminal-404__title">magic@blog: ~</span>
+  </div>
+  <div class="terminal-404__body">
+    <div class="terminal-404__line" data-delay="0">
+      <span class="terminal-404__prompt">$</span>
+      <span class="terminal-404__typed" data-text="curl -I {{ site.url }}{{ site.baseurl }}{{ page.url }}"></span>
+    </div>
+    <div class="terminal-404__line terminal-404__output" data-delay="1800">
+      <span class="terminal-404__typed terminal-404__error-text" data-text="HTTP/1.1 404 Not Found"></span>
+    </div>
+    <div class="terminal-404__line" data-delay="3200">
+      <span class="terminal-404__prompt">$</span>
+      <span class="terminal-404__typed" data-text="echo &quot;Oops! This page doesn't exist.&quot;"></span>
+    </div>
+    <div class="terminal-404__line terminal-404__output" data-delay="5200">
+      <span class="terminal-404__typed" data-text="Oops! This page doesn't exist."></span>
+    </div>
+    <div class="terminal-404__line" data-delay="6600">
+      <span class="terminal-404__prompt">$</span>
+      <span class="terminal-404__typed" data-text="echo &quot;Maybe it was moved, deleted, or never existed.&quot;"></span>
+    </div>
+    <div class="terminal-404__line terminal-404__output" data-delay="9200">
+      <span class="terminal-404__typed" data-text="Maybe it was moved, deleted, or never existed."></span>
+    </div>
+    <div class="terminal-404__line" data-delay="10600">
+      <span class="terminal-404__prompt">$</span>
+      <span class="terminal-404__typed" data-text="cd /home"></span>
+      <a href="{{ '/' | relative_url }}" class="terminal-404__home-link" id="terminal-home-link">← Take me home</a>
+    </div>
+    <div class="terminal-404__line terminal-404__cursor-line" data-delay="12000">
+      <span class="terminal-404__prompt">$</span>
+      <span class="terminal-404__blinking-cursor">▌</span>
+    </div>
   </div>
 </div>
 
 {{ content }}
+
+<script>
+(function() {
+  var lines = document.querySelectorAll('.terminal-404__line');
+  var baseDelay = 300;
+
+  lines.forEach(function(line) {
+    var delay = parseInt(line.getAttribute('data-delay'), 10) + baseDelay;
+    var typedEl = line.querySelector('.terminal-404__typed');
+    var homeLink = line.querySelector('.terminal-404__home-link');
+
+    // Hide everything initially
+    line.style.visibility = 'hidden';
+    if (homeLink) homeLink.style.display = 'none';
+
+    setTimeout(function() {
+      line.style.visibility = 'visible';
+
+      if (typedEl) {
+        var fullText = typedEl.getAttribute('data-text');
+        var idx = 0;
+        typedEl.textContent = '';
+
+        var typeInterval = setInterval(function() {
+          if (idx < fullText.length) {
+            typedEl.textContent += fullText.charAt(idx);
+            idx++;
+          } else {
+            clearInterval(typeInterval);
+            // Show the home link after typing finishes (if present)
+            if (homeLink) {
+              setTimeout(function() {
+                homeLink.style.display = 'inline';
+                homeLink.classList.add('terminal-404__home-link--visible');
+              }, 300);
+            }
+          }
+        }, 35);
+      }
+    }, delay);
+  });
+})();
+</script>

@@ -1,6 +1,22 @@
 /* start custom scss snippet */
 
 // ========================================
+// Reading Progress Bar
+// ========================================
+.reading-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  z-index: 9999;
+  transition: width 0.1s linear;
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+}
+
+// ========================================
 // Typography
 // ========================================
 html {
@@ -456,6 +472,60 @@ body {
 }
 
 // ========================================
+// Code Copy Button
+// ========================================
+.code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease, color 0.2s ease;
+  z-index: 10;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+
+  &.copied {
+    color: #a9dc76;
+    background: rgba(169, 220, 118, 0.15);
+    opacity: 1;
+  }
+
+  svg {
+    pointer-events: none;
+  }
+}
+
+// Show copy button on hover over the code block
+.highlighter-rouge:hover .code-copy-btn,
+figure.highlight:hover .code-copy-btn {
+  opacity: 1;
+}
+
+// Inline code should not get a copy button position context
+.article__content > p > code,
+.article__content li > code {
+  position: static !important;
+}
+
+// ========================================
 // Selection color
 // ========================================
 ::selection {
@@ -485,10 +555,232 @@ body {
 }
 
 // ========================================
+// Back to Top Button
+// ========================================
+.back-to-top {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 9998;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(16px) scale(0.8);
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 22px rgba(102, 126, 234, 0.55);
+    transform: translateY(-2px) scale(1);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.95);
+    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
+  }
+
+  &--visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+  }
+
+  svg {
+    pointer-events: none;
+  }
+}
+
+// ========================================
 // Smooth transitions for all interactive elements
 // ========================================
 a, button, .button, .card, .item {
   transition: all 0.2s ease;
+}
+
+// ========================================
+// Terminal-style 404 Page
+// ========================================
+.terminal-404 {
+  max-width: 720px;
+  margin: 2rem auto 3rem;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+
+.terminal-404__titlebar {
+  background: linear-gradient(180deg, #3a3a3c, #2c2c2e);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.terminal-404__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+
+  &--red {
+    background: #ff5f57;
+    box-shadow: 0 0 4px rgba(255, 95, 87, 0.4);
+  }
+
+  &--yellow {
+    background: #febc2e;
+    box-shadow: 0 0 4px rgba(254, 188, 46, 0.4);
+  }
+
+  &--green {
+    background: #28c840;
+    box-shadow: 0 0 4px rgba(40, 200, 64, 0.4);
+  }
+}
+
+.terminal-404__title {
+  color: #98989d;
+  font-size: 0.8rem;
+  margin-left: 8px;
+  letter-spacing: 0.02em;
+}
+
+.terminal-404__body {
+  background: #1a1a2e;
+  padding: 1.5rem;
+  min-height: 280px;
+}
+
+.terminal-404__line {
+  margin-bottom: 0.6rem;
+  line-height: 1.7;
+  font-size: 0.92rem;
+  color: #c8d6e5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-404__prompt {
+  color: #a9dc76;
+  margin-right: 0.6em;
+  font-weight: 700;
+  user-select: none;
+
+  &::before {
+    content: '';
+  }
+}
+
+.terminal-404__typed {
+  color: #e6edf3;
+}
+
+.terminal-404__error-text {
+  color: #ff6b6b !important;
+  font-weight: 600;
+}
+
+.terminal-404__output {
+  padding-left: 1.2em;
+  color: #78dce8;
+}
+
+.terminal-404__home-link {
+  display: none;
+  margin-left: 2em;
+  color: #667eea !important;
+  text-decoration: none !important;
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  border-bottom: 1px solid rgba(102, 126, 234, 0.4) !important;
+  padding: 0.25em 0.8em;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  opacity: 0;
+  animation: none;
+
+  &--visible {
+    opacity: 1;
+    animation: terminal404FadeIn 0.5s ease forwards;
+  }
+
+  &:hover {
+    background: #667eea !important;
+    color: #fff !important;
+    border-color: #667eea !important;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.35);
+    transform: translateY(-1px);
+  }
+}
+
+.terminal-404__cursor-line {
+  display: flex;
+  align-items: center;
+}
+
+.terminal-404__blinking-cursor {
+  color: #a9dc76;
+  animation: terminal404Blink 1s step-end infinite;
+  font-weight: 700;
+}
+
+@keyframes terminal404Blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes terminal404FadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 600px) {
+  .terminal-404 {
+    margin: 1rem 0.5rem 2rem;
+    border-radius: 8px;
+  }
+
+  .terminal-404__body {
+    padding: 1rem;
+    min-height: 220px;
+  }
+
+  .terminal-404__line {
+    font-size: 0.8rem;
+  }
+
+  .terminal-404__home-link {
+    display: block !important;
+    margin-left: 1.2em;
+    margin-top: 0.5em;
+    text-align: center;
+    max-width: 160px;
+
+    &--visible {
+      display: block !important;
+    }
+  }
 }
 
 /* end custom scss snippet */

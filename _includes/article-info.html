@@ -67,6 +67,18 @@
             </li>
           {%- endif -%}
 
+          {%- if include.article.content -%}
+            {%- assign _content_stripped = include.article.content | strip_html | strip_newlines -%}
+            {%- assign _char_count = _content_stripped | size -%}
+            {%- assign _reading_time = _char_count | divided_by: 300 -%}
+            {%- if _reading_time < 1 -%}
+              {%- assign _reading_time = 1 -%}
+            {%- endif -%}
+            <li>
+              <i class="far fa-clock"></i> <span>{{ _reading_time }} min read</span>
+            </li>
+          {%- endif -%}
+
           {%- if _pageview -%}
             {%- if site.pageview.provider -%}
               {%- include snippets/get-locale-string.html key='VIEWS' -%}
