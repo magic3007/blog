@@ -60,10 +60,8 @@
       console.log('Current data:', snapshot.val())
     }
 
-    let currentCount = 0;
     if (snapshot.exists()) {
-      currentCount = snapshot.val().count || 0;
-      // Increment count
+      const currentCount = snapshot.val().count || 0;
       console.log('Incrementing count to:', currentCount + 1)
       update(pageviewRef, {
         count: increment(1),
@@ -73,9 +71,9 @@
       }).catch(err => {
         console.error('Increment failed:', err)
       })
+      updatePageviewDisplay(currentCount + 1);
     } else {
       console.log('Creating new pageview record')
-      // Create new record
       update(pageviewRef, {
         count: 1,
         title: pageTitle,
@@ -87,10 +85,8 @@
       }).catch(err => {
         console.error('Create record failed:', err)
       })
-      currentCount = 1;
+      updatePageviewDisplay(1);
     }
-    // Update display
-    updatePageviewDisplay(currentCount + 1);
   }).catch((error) => {
     console.error("Pageview error:", error);
     updatePageviewDisplay(0);
