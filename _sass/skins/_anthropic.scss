@@ -1,0 +1,73 @@
+///
+// Skin: Anthropic
+// Description: Warm, minimalist Anthropic brand palette
+///
+
+// main colors
+$main-color-1:     #d97757;       // Terracotta - primary accent
+$text-color-1:     #fff;
+
+$main-color-2:     #6a9bcc;       // Blue - secondary accent
+$text-color-2:     #fff;
+
+$main-color-3:     #e8e6dc;       // Warm light gray - header/footer
+$text-color-3:     #141413;
+
+$main-color-theme-light: rgba(#141413, .9);
+$main-color-theme-dark:  rgba(#faf9f5, .9);
+
+// page background
+$background-color: #faf9f5;
+
+// text colors
+$text-color-theme-light-d: #141413;
+$text-color-theme-light:   #2a2a27;
+$text-color-theme-light-l: #b0aea5;
+
+$text-color-theme-dark-d:  #faf9f5;
+$text-color-theme-dark:    rgba(#faf9f5, .95);
+$text-color-theme-dark-l:  rgba(#faf9f5, .85);
+
+$text-color-d:     $text-color-theme-light-d;
+$text-color:       $text-color-theme-light;
+$text-color-l:     $text-color-theme-light-l;
+
+$text-background-color: rgba(#141413, .04);
+
+// header and footer colors
+$header-text-color: $text-color-3;
+$header-background: $main-color-3;
+
+$footer-text-color: $text-color-3;
+$footer-background: $main-color-3;
+
+// border and shadow colors
+$border-color:     mix(#141413, $background-color, 15%);
+$border-color-l:   mix(#141413, $background-color, 8%);
+$decorate-color:   rgba(#141413, .08);
+$mask-color:       rgba(#141413, .9);
+$select-color:     rgba($main-color-1, .4);
+
+// function colors
+$green:           #788c5d;
+$blue:            #6a9bcc;
+$yellow:          #d97757;
+$red:             #c44a2c;
+$text-color-function: #fff;
+
+// logo colors
+$mail-color:       #0072c5;
+$facebook-color:   #4267b2;
+$twitter-color:    #1da1f2;
+$weibo-color:      #e6162d;
+$google-plus-color:#ea4335;
+$telegram-color:   #32afed;
+$medium-color:     #141413;
+$zhihu-color:      #0084ff;
+$douban-color:     #42bd56;
+$linkedin-color:   #1074af;
+$github-color:     #141413;
+$npm-color:        #faf9f5;
+
+// highlight colors
+@import "skins/highlight/tomorrow-night-eighties";
