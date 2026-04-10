@@ -222,48 +222,48 @@ body {
 
     > pre {
       border-radius: 10px !important;
-      background: #1e1e2e !important;
+      background: #1c1917 !important;
       padding: 1.25rem !important;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 20px rgba(28, 25, 23, 0.3);
 
       > code {
-        color: #e6edf3 !important;
+        color: #e8e5db !important;
         background: transparent !important;
         padding: 0 !important;
 
-        // 提高语法高亮对比度
-        .c, .cm, .cp, .c1, .cs { color: #8b949e !important; }  /* 注释 - 柔和灰 */
-        .k, .kc, .kd, .kp, .kr { color: #ff7eb6 !important; }  /* 关键字 - 亮粉 */
-        .kn { color: #78dce8 !important; }                       /* import/from - 亮青 */
-        .kt { color: #ffd866 !important; }                       /* 类型 - 亮黄 */
-        .n, .nb, .ni, .nl, .py, .bp { color: #e6edf3 !important; } /* 普通名称 - 亮白 */
-        .nf, .nx { color: #82aaff !important; }                  /* 函数 - 亮蓝 */
-        .nc, .nn { color: #ffd866 !important; }                  /* 类/命名空间 - 亮黄 */
-        .na { color: #82aaff !important; }                       /* 属性 - 亮蓝 */
-        .no, .ne, .nv, .vc, .vg, .vi { color: #ff7eb6 !important; } /* 常量/变量 - 亮粉 */
-        .nd, .nt { color: #78dce8 !important; }                  /* 装饰器/标签 - 亮青 */
-        .s, .s1, .s2, .sb, .sh, .sx, .sr, .ss { color: #a9dc76 !important; } /* 字符串 - 亮绿 */
-        .sd { color: #8b949e !important; }                       /* 文档字符串 - 柔和灰 */
-        .se, .si { color: #fc9867 !important; }                  /* 转义/插值 - 亮橙 */
-        .m, .mf, .mh, .mi, .mo, .il { color: #fc9867 !important; } /* 数字 - 亮橙 */
-        .l, .ld { color: #fc9867 !important; }                   /* 字面量 - 亮橙 */
-        .o, .ow { color: #78dce8 !important; }                   /* 运算符 - 亮青 */
-        .p { color: #e6edf3 !important; }                        /* 标点 - 亮白 */
-        .err { color: #ff6188 !important; }                      /* 错误 - 红 */
-        .gd { color: #ff6188 !important; }                       /* 删除 */
-        .gi { color: #a9dc76 !important; }                       /* 插入 */
-        .gh { color: #e6edf3 !important; font-weight: bold; }    /* 标题 */
-        .gu { color: #78dce8 !important; font-weight: bold; }    /* 子标题 */
-        .w { color: #e6edf3 !important; }                        /* 空白 */
-        .sc { color: #e6edf3 !important; }                       /* 字符 */
+        // Anthropic warm syntax highlighting (WCAG AA compliant)
+        .c, .cm, .cp, .c1, .cs { color: #8a8580 !important; }  /* 注释 - 暖灰 */
+        .k, .kc, .kd, .kp, .kr { color: #d97757 !important; }  /* 关键字 - 赤陶 */
+        .kn { color: #6a9bcc !important; }                       /* import/from - 天蓝 */
+        .kt { color: #d4a76a !important; }                       /* 类型 - 琥珀 */
+        .n, .nb, .ni, .nl, .py, .bp { color: #e8e5db !important; } /* 普通名称 - 暖白 */
+        .nf, .nx { color: #6a9bcc !important; }                  /* 函数 - 天蓝 */
+        .nc, .nn { color: #d4a76a !important; }                  /* 类/命名空间 - 琥珀 */
+        .na { color: #6a9bcc !important; }                       /* 属性 - 天蓝 */
+        .no, .ne, .nv, .vc, .vg, .vi { color: #d97757 !important; } /* 常量/变量 - 赤陶 */
+        .nd, .nt { color: #8fb5c4 !important; }                  /* 装饰器/标签 - 柔蓝 */
+        .s, .s1, .s2, .sb, .sh, .sx, .sr, .ss { color: #9caf88 !important; } /* 字符串 - 鼠尾草绿 */
+        .sd { color: #8a8580 !important; }                       /* 文档字符串 - 暖灰 */
+        .se, .si { color: #dba97e !important; }                  /* 转义/插值 - 暖金 */
+        .m, .mf, .mh, .mi, .mo, .il { color: #dba97e !important; } /* 数字 - 暖金 */
+        .l, .ld { color: #dba97e !important; }                   /* 字面量 - 暖金 */
+        .o, .ow { color: #8fb5c4 !important; }                   /* 运算符 - 柔蓝 */
+        .p { color: #e8e5db !important; }                        /* 标点 - 暖白 */
+        .err { color: #c44a2c !important; }                      /* 错误 - 深红 */
+        .gd { color: #c44a2c !important; }                       /* 删除 */
+        .gi { color: #9caf88 !important; }                       /* 插入 */
+        .gh { color: #e8e5db !important; font-weight: bold; }    /* 标题 */
+        .gu { color: #6a9bcc !important; font-weight: bold; }    /* 子标题 */
+        .w { color: #e8e5db !important; }                        /* 空白 */
+        .sc { color: #e8e5db !important; }                       /* 字符 */
       }
     }
   }
 
   figure.highlight {
     &::before {
-      background: #1e1e2e !important;
-      color: rgba(255, 255, 255, 0.4) !important;
+      background: #1c1917 !important;
+      color: rgba(232, 229, 219, 0.4) !important;
       border-radius: 10px 10px 0 0 !important;
       font-size: 0.75rem !important;
       letter-spacing: 0.1em;
@@ -272,6 +272,41 @@ body {
     > pre {
       border-top-left-radius: 0 !important;
       border-top-right-radius: 0 !important;
+    }
+  }
+
+  // Callout boxes (Anthropic warm style)
+  .callout-note {
+    position: relative;
+    padding: 1.25rem 1.5rem;
+    margin: 1.8em 0;
+    background: #fef8f4;
+    border: 1px solid rgba(217, 119, 87, 0.2);
+    border-left: 4px solid #d97757;
+    border-radius: 0 10px 10px 0;
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: #3d3d3a;
+    box-shadow: 0 2px 8px rgba(217, 119, 87, 0.06);
+
+    p {
+      margin: 0.5em 0;
+      &:last-child { margin-bottom: 0; }
+      &:first-child { margin-top: 0; }
+    }
+
+    strong {
+      color: #141413;
+    }
+
+    code {
+      background: rgba(217, 119, 87, 0.08) !important;
+      color: #c44a2c;
+    }
+
+    a {
+      color: #d97757;
+      border-bottom-color: rgba(217, 119, 87, 0.3);
     }
   }
 
