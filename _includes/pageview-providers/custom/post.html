@@ -4,13 +4,15 @@
 {%- assign _FIREBASE_PROJECT_ID = site.pageview.firebase.project_id -%}
 {%- assign _FIREBASE_APP_CLASS = site.pageview.firebase.app_class | default: 'pageviews' -%}
 
-{%- if page.key and
+{%- assign pageKey = page.id | default: page.key | replace: '/', '-' -%}
+{%- if pageKey and
   _FIREBASE_API_KEY and
   _FIREBASE_AUTH_DOMAIN and
   _FIREBASE_DATABASE_URL and
   _FIREBASE_PROJECT_ID -%}
 
 <script type="module">
+  console.log('=== Pageview script start ===')
   // Import Firebase SDK
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
   import { getDatabase, ref, get, increment, update } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
@@ -22,38 +24,57 @@
     databaseURL: "{{ _FIREBASE_DATABASE_URL }}",
     projectId: "{{ _FIREBASE_PROJECT_ID }}",
   };
+  console.log('Firebase config:', firebaseConfig)
 
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  console.log('Firebase initialized')
 
   // Page key
-  const pageKey = "{{ page.id | default: page.key | replace: '/', '-' }}";
+  const pageKey = "{{ pageKey }}";
   const pageTitle = {{ page.title | jsonify }};
   const pageUrl = window.location.pathname;
-  console.log('Page key:', pageKey); // 调试用，部署前可以删掉
+  console.log('Page key:', pageKey);
 
   // Get pageview reference
   const pageviewRef = ref(db, `{{ _FIREBASE_APP_CLASS }}/${pageKey}`);
 
   // Function to update pageview count display
   function updatePageviewDisplay(count) {
-    document.querySelectorAll(`[data-page-key="${pageKey}"]`).forEach(el => {
+    console.log('Updating display count to:', count)
+    const elements = document.querySelectorAll(`[data-page-key="${pageKey}"]`);
+    console.log('Found display elements:', elements.length)
+    elements.forEach(el => {
       el.textContent = count || 0;
     });
   }
 
   // Get current count and increment
+  const appClass = "{{ _FIREBASE_APP_CLASS }}";
+  console.log('DB path:', `${appClass}/${pageKey}`)
+
   get(pageviewRef).then((snapshot) => {
+    console.log('DB snapshot exists:', snapshot.exists())
+    if (snapshot.exists()) {
+      console.log('Current data:', snapshot.val())
+    }
+
     let currentCount = 0;
     if (snapshot.exists()) {
       currentCount = snapshot.val().count || 0;
       // Increment count
+      console.log('Incrementing count to:', currentCount + 1)
       update(pageviewRef, {
         count: increment(1),
         lastViewed: new Date().toISOString()
-      });
+      }).then(() => {
+        console.log('Increment success!')
+      }).catch(err => {
+        console.error('Increment failed:', err)
+      })
     } else {
+      console.log('Creating new pageview record')
       // Create new record
       update(pageviewRef, {
         count: 1,
@@ -61,13 +82,17 @@
         url: pageUrl,
         createdAt: new Date().toISOString(),
         lastViewed: new Date().toISOString()
-      });
+      }).then(() => {
+        console.log('Create record success!')
+      }).catch(err => {
+        console.error('Create record failed:', err)
+      })
       currentCount = 1;
     }
     // Update display
     updatePageviewDisplay(currentCount + 1);
   }).catch((error) => {
-    console.error("Error getting pageview:", error);
+    console.error("Pageview error:", error);
     updatePageviewDisplay(0);
   });
 </script>
