@@ -1,3 +1,79 @@
-<!-- start custom pageview snippet (for Home layout) -->
+{%- assign _FIREBASE_API_KEY = site.pageview.firebase.api_key -%}
+{%- assign _FIREBASE_AUTH_DOMAIN = site.pageview.firebase.auth_domain -%}
+{%- assign _FIREBASE_DATABASE_URL = site.pageview.firebase.database_url -%}
+{%- assign _FIREBASE_PROJECT_ID = site.pageview.firebase.project_id -%}
+{%- assign _FIREBASE_APP_CLASS = site.pageview.firebase.app_class | default: 'pageviews' -%}
 
-<!-- end custom pageview snippet (for Home layout) -->
+{%- if
+  _FIREBASE_API_KEY and
+  _FIREBASE_AUTH_DOMAIN and
+  _FIREBASE_DATABASE_URL and
+  _FIREBASE_PROJECT_ID -%}
+
+<script type="module">
+  // Import Firebase SDK
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getDatabase, ref, get, increment, update } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+  // Firebase configuration
+  const firebaseConfig = {
+    apiKey: "{{ _FIREBASE_API_KEY }}",
+    authDomain: "{{ _FIREBASE_AUTH_DOMAIN }}",
+    databaseURL: "{{ _FIREBASE_DATABASE_URL }}",
+    projectId: "{{ _FIREBASE_PROJECT_ID }}",
+  };
+
+  // Initialize Firebase only once
+  if (!window.firebaseApp) {
+    window.firebaseApp = initializeApp(firebaseConfig);
+    window.db = getDatabase(window.firebaseApp);
+  }
+
+  // Track homepage view
+  const homeRef = ref(window.db, `{{ _FIREBASE_APP_CLASS }}/home`);
+  get(homeRef).then((snapshot) => {
+    if (snapshot.exists()) {
+      update(homeRef, {
+        count: increment(1),
+        lastViewed: new Date().toISOString()
+      });
+    } else {
+      update(homeRef, {
+        count: 1,
+        title: "Homepage",
+        url: window.location.pathname,
+        createdAt: new Date().toISOString(),
+        lastViewed: new Date().toISOString()
+      });
+    }
+  }).catch((error) => {
+    console.error("Error tracking homepage view:", error);
+  });
+
+  // Load pageviews for article list
+  document.addEventListener('DOMContentLoaded', () => {
+    const pageElements = document.querySelectorAll('[data-page-key]');
+    if (pageElements.length === 0) return;
+
+    const pageKeys = Array.from(pageElements).map(el => el.dataset.pageKey);
+    const allPageviewsRef = ref(window.db, `{{ _FIREBASE_APP_CLASS }}`);
+
+    get(allPageviewsRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        const pageviews = snapshot.val();
+        pageElements.forEach(el => {
+          const key = el.dataset.pageKey;
+          if (pageviews[key] && pageviews[key].count) {
+            el.textContent = pageviews[key].count;
+          } else {
+            el.textContent = 0;
+          }
+        });
+      }
+    }).catch((error) => {
+      console.error("Error loading pageviews for list:", error);
+    });
+  });
+</script>
+
+{%- endif -%}

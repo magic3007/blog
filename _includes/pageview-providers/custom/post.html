@@ -1,3 +1,75 @@
-<!-- start custom pageview snippet (for the post) -->
+{%- assign _FIREBASE_API_KEY = site.pageview.firebase.api_key -%}
+{%- assign _FIREBASE_AUTH_DOMAIN = site.pageview.firebase.auth_domain -%}
+{%- assign _FIREBASE_DATABASE_URL = site.pageview.firebase.database_url -%}
+{%- assign _FIREBASE_PROJECT_ID = site.pageview.firebase.project_id -%}
+{%- assign _FIREBASE_APP_CLASS = site.pageview.firebase.app_class | default: 'pageviews' -%}
 
-<!-- end custom pageview snippet (for the post) -->
+{%- if page.key and
+  _FIREBASE_API_KEY and
+  _FIREBASE_AUTH_DOMAIN and
+  _FIREBASE_DATABASE_URL and
+  _FIREBASE_PROJECT_ID -%}
+
+<script type="module">
+  // Import Firebase SDK
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getDatabase, ref, get, increment, update } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+  // Firebase configuration
+  const firebaseConfig = {
+    apiKey: "{{ _FIREBASE_API_KEY }}",
+    authDomain: "{{ _FIREBASE_AUTH_DOMAIN }}",
+    databaseURL: "{{ _FIREBASE_DATABASE_URL }}",
+    projectId: "{{ _FIREBASE_PROJECT_ID }}",
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Page key
+  const pageKey = "{{ page.id | default: page.key | replace: '/', '-' }}";
+  const pageTitle = {{ page.title | jsonify }};
+  const pageUrl = window.location.pathname;
+  console.log('Page key:', pageKey); // 调试用，部署前可以删掉
+
+  // Get pageview reference
+  const pageviewRef = ref(db, `{{ _FIREBASE_APP_CLASS }}/${pageKey}`);
+
+  // Function to update pageview count display
+  function updatePageviewDisplay(count) {
+    document.querySelectorAll(`[data-page-key="${pageKey}"]`).forEach(el => {
+      el.textContent = count || 0;
+    });
+  }
+
+  // Get current count and increment
+  get(pageviewRef).then((snapshot) => {
+    let currentCount = 0;
+    if (snapshot.exists()) {
+      currentCount = snapshot.val().count || 0;
+      // Increment count
+      update(pageviewRef, {
+        count: increment(1),
+        lastViewed: new Date().toISOString()
+      });
+    } else {
+      // Create new record
+      update(pageviewRef, {
+        count: 1,
+        title: pageTitle,
+        url: pageUrl,
+        createdAt: new Date().toISOString(),
+        lastViewed: new Date().toISOString()
+      });
+      currentCount = 1;
+    }
+    // Update display
+    updatePageviewDisplay(currentCount + 1);
+  }).catch((error) => {
+    console.error("Error getting pageview:", error);
+    updatePageviewDisplay(0);
+  });
+</script>
+
+{%- endif -%}

@@ -146,13 +146,15 @@ comments:
 ## => Pageview
 ##############################
 pageview:
-  provider: false # false (default), "leancloud", "custom"
+  provider: custom # false (default), "leancloud", "custom"
 
-  ## Leancloud
-  leancloud:
-    app_id    : # LeanCloud App id
-    app_key   : # LeanCloud App key
-    app_class : # LeanCloud App class
+  ## Firebase (Custom provider)
+  firebase:
+    api_key: "AIzaSyAwxzZf0-5Di9sd-qAKdUOzky03fcy657o"
+    auth_domain: "magic-blog-ab42d.firebaseapp.com"
+    database_url: "https://magic-blog-ab42d-default-rtdb.firebaseio.com"
+    project_id: "magic-blog-ab42d"
+    app_class: pageviews # 数据存储节点名称
 
 
 ## => Search
