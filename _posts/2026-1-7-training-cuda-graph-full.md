@@ -368,6 +368,15 @@ idx_flat_rerouted = indices_token * num_total_experts + idx_offload_col
 tl.store(map_rerouted_ptr + idx_flat_rerouted, True, mask=mask_valid)  # 设置新路由
 ```
 
+另外还有一个小细节，当整体负载其实已经比较均衡时，即使算出来某些 echo slot 要接收少量 token，通信代价可能得不偿失。所以我们加了一个阈值过滤，直接把部分 spare expert slot 的分配全部置零：
+```python
+capacity_remaining = max_allowed_load - count_tokens_after_offloading
+idx_safe_steps = torch.searchsorted(count_tokens_cumsum, capacity_remaining.unsqueeze(1), ...)
+...
+mask_column = mask_original_order.any(dim=0)
+count_tokens_from_home_expert_to_spare_expert = torch.where(mask_column.unsqueeze(0), ..., zeros)
+```
+
 ## CUDA Graph 兼容的 MoE 负载均衡算法
 
 为了使该 MoE 负载均衡算法与 CUDA Graph 兼容，我们需要把这套算法实现在 GPU 上，避免 CPU 操作，具体技巧包括：
@@ -431,6 +440,7 @@ output, mlp_bias = dispatch_and_compute(hidden_states, probs, metadata)
     ...
 )
 ```
+
 
 这个时候就有另外一个问题：当负载比较均衡时，某些 redundant expert slot 不会被分配任何 home expert，这个时候要怎么办呢？
 技巧还是用一个 `torch.autograd.Function` 插入到计算图中作为一个节点，然后在 `forward` 和 `backward` 中自定义一个空矩阵即可。我们可以这么做：在 `set_expert_weights` 中，判断某个 redundant expert slot 是否被分配了某个 home expert：
@@ -569,6 +579,8 @@ def forward(ctx, run_function, checkpoint_without_output_obj, *args):
         outputs = run_function(*args)
 
     # 保存输入（detach 后），供反向时重算
+    # detached_args[i] 是 args[i] 的独立副本，is_leaf=True
+    # 有独立的 .grad 存储，和原张量不共享 autograd 关系
     detached_args = tuple(
         arg.detach().requires_grad_(arg.requires_grad) if isinstance(arg, torch.Tensor) else arg
         for arg in args
@@ -577,7 +589,6 @@ def forward(ctx, run_function, checkpoint_without_output_obj, *args):
     checkpoint_without_output_obj.ctx = ctx   # 把 ctx 挂到外部对象上
     return outputs
 ```
-
 然后在前向传播结束后，调用方可以自定义 hook 触发的时机：
 ```python
 def discard_output_and_register_recompute(self, hook_tensor):
@@ -609,7 +620,8 @@ self.input_layernorm_checkpoint.discard_output_and_register_recompute(attention_
 def _recompute(self, _):
     inputs = self.ctx.detached_args
 
-    # 在 enable_grad 下重新执行前向函数 → 构建计算图
+    # 用影子 leaf 在 enable_grad 下重新执行前向函数 → 构建计算图
+    # 这张图的 leaf 是 detached_args（影子），不是原始 *args
     with torch.enable_grad():
         outputs = self.run_function(*inputs)
 
@@ -624,7 +636,32 @@ def _recompute(self, _):
     # 把重算的输出（带计算图的版本）存到 ctx 上，供 backward 使用
     self.ctx.outputs = outputs
 ```
-我们看到核心操作是 `resize` 和 `copy_`，这样可以把之前 resize 为 0 的存储重新扩大，然后把重算的数据复制进去即可。
+我们看到核心操作是 `resize` 和 `copy_`，这样可以把之前 resize 为 0 的存储重新扩大，然后把重算的数据复制进去即可。那么在backward我们做的事情是：
+```python
+@staticmethod
+def backward(ctx, *output_grads):
+    inputs  = ctx.detached_args          # 影子 leaf
+    outputs = ctx.outputs                # 挂在影子图上的输出
+
+    # 沿着影子图把梯度写到影子 leaf 的 .grad 上
+    torch.autograd.backward(outputs, output_grads)
+
+    # 取出影子 leaf 的 .grad，作为"input 的梯度"返回给外层 autograd
+    grads = tuple(inp.grad if torch.is_tensor(inp) else None for inp in inputs)
+    return (None, None) + grads
+```
+因此反向传播的时候梯度流向如下：
+```python
+外层 autograd:         ... ── args[i] ──[本 Function]── outputs ── ...
+                                ▲
+                                │ 由 return 的 grads[i] 喂回外层
+                                │
+内部影子图:   detached_args[i]  ──►  new_outputs
+              (is_leaf, 独立)
+            `torch.autograd.backward` 只会往 detached_args[i].grad 写
+            不会碰到外层的 args[i]，也不会碰到任何 nn.Parameter 的 .grad
+```
+这个时候，"内部反传"和"外部反传"是两张独立的图，通过 `return grads` 这一个出口相连。所以内部用 `torch.autograd.backward()` 是安全。但是问题是，这在内部反传的时候，因为 detach 出的副本不是 `nn.Parameter`，是没有 `main_grad` / `grad_added_to_main_grad` 这些 TE / DDP 约定属性。
 
 ## 基于重计算实现 redundant expert slots 的显存层间复用
 
@@ -737,6 +774,11 @@ routing_map = (
 ```
 > 这里打包了不需要 offload 的权重，虽然不会发送，但仍然参与了 permute，这里存在进一步优化的空间。
 
+注意我们这里设置了chunk size来获得更好的传输效率。因为我们是复用HybridEP的，然后DeepSeek V3里面hidden dim就是8192，因此我们尽可能让每个chunk尽可能接近8192个元素：
+```python
+n = max(0, round(math.log2(8192 / config.hidden_size)))
+self.weight_chunk_size = config.hidden_size * (2 ** n)
+```
 在接收端，我们设置了固定大小的输出 buffer，然后均匀切分即可。虽然这里没有收到权重的 redundant expert slots 未被初始化，但是也占了 buffer。
 ```python
 # num_permuted_tokens 是固定值，不依赖运行时数据
@@ -881,6 +923,127 @@ expert_output → [token combine] → output
               ▼
       DDP hook: grad_added_to_main_grad = True → 跳过
 ```
+
+## 基于重计算实现 HybridEP expert dispatcher下redundant expert slots 的显存层间复用
+类似基于alltoall的expert dispatcher，HybridEP expert dispatcher也可以使用重计算来实现redundant expert slots 的显存层间复用。
+但是这样会存在一些问题需要解决。
+注意到在上一章中，我们发现HybirdEP反向传播的时候，是直接写到main_grad。但是如前面所述，`CheckpointWithoutOutputFunction`的使用了detach，detached args是不会有main_grad这个属性的，会有问题。因此我们对`CheckpointWithoutOutputFunction`的前向过程进行了修改，对leaf的向量不detach，只detach非leaf向量，这样能保留leaf的向量的main_grad:
+```python
+    @staticmethod
+    def forward(ctx, run_function, checkpoint_without_output_obj, *args):
+        """Forward pass."""
+        
+        with torch.no_grad(), fwd_ctx:
+            outputs = run_function(*args)
+        # Skip detach of leaf nodes, since we want to access main_grad of leaf nodes.
+        detached_args = tuple(
+            arg if (isinstance(arg, torch.Tensor) and arg.is_leaf) else
+            (arg.detach().requires_grad_(arg.requires_grad) if isinstance(arg, torch.Tensor) else arg)
+            for arg in args
+        )
+        ctx.detached_args = detached_args
+        ctx.only_calculate_input_grad = checkpoint_without_output_obj.only_calculate_input_grad
+        # ctx.save_for_backward(*detached_args)
+        # the CheckpointWithoutOutput object is passed in, then it can access the saved input
+        # tensors later for recomputation
+        checkpoint_without_output_obj.ctx = ctx
+        return outputs
+```
+同时，我们在`_recompute`里面，非 leaf 又 detach 了一次，leaf 依旧保持原身：
+```python
+def _recompute(self):
+    # 注意这里对非 leaf 又 detach 了一次（防止二次挂图），leaf 依旧保持原身
+    inputs = tuple(
+        arg if (isinstance(arg, torch.Tensor) and arg.is_leaf)
+        else _detach_with_grad(arg)
+        for arg in self.ctx.detached_args
+    )
+    with torch.enable_grad():
+        new_outputs = self.run_function(*inputs)
+    self.ctx.outputs = new_outputs
+```
+因此在在这张"半影子图"里，原始 `nn.Parameter` 就是图上的 leaf。`run_function` 内部（比如 `HybridEPExpertDispatch.backward`）可以直接 `weight.main_grad.add_(...)`。
+
+同样地，对于backward我们也要修改。原本backward使用的是`torch.autograd.backward`, 会累加到`.grad`一次。因为我们现在不detach了，在外层autograd时候又会加一次，因为我们用`only_calculate_input_grad`这个参数控制，如果为true就用`torch.autograd.grad`, 这个是不会累加到`.grad`的。
+```python
+@staticmethod
+def backward(ctx, *output_grads):
+    inputs  = ctx.detached_args
+    outputs = ctx.outputs
+
+    valid_outputs, valid_grads = _filter_nones(outputs, output_grads)
+
+    if ctx.only_calculate_input_grad:
+        # 纯函数式：只"返回"梯度，不往任何 .grad / main_grad 里写
+        tensor_inputs = [x for x in inputs
+                         if torch.is_tensor(x) and x.requires_grad]
+        grads = torch.autograd.grad(
+            outputs=valid_outputs,
+            inputs=tensor_inputs,
+            grad_outputs=valid_grads,
+            allow_unused=True,
+        )
+        grad_map = {id(x): g for x, g in zip(tensor_inputs, grads)}
+        input_grads = tuple(
+            grad_map.get(id(x)) if torch.is_tensor(x) else x
+            for x in inputs
+        )
+    else:
+        # 兼容路径：沿用 backward()，此时调用方必须自己保证不会造成 double accumulation
+        # （典型做法：run_function 内部已经把 wgrad 写到 main_grad、并 return None，
+        #  所以这条反传里对应 weight 那一支根本不产生 .grad 写入）
+        torch.autograd.backward(valid_outputs, grad_tensors=valid_grads)
+        input_grads = tuple(
+            x.grad if torch.is_tensor(x) else x for x in inputs
+        )
+
+    return (None, None) + input_grads
+```
+因此反向传播的时候，整体的流向图如下：
+```python
+外层 autograd:   ... ── args[i] ──[本 Function]── outputs ── ...
+                          ▲
+                          │ return 的 input_grads[i] 喂回外层，由外层累加到 .grad/main_grad
+                          │
+内部半影子图:   ctx.detached_args[i]  ──►  new_outputs
+                (leaf 就是原 nn.Parameter 本身)
+      `torch.autograd.grad` 只是"算出并返回"梯度，
+      绝不触碰 inputs[*].grad，也不触发 TE 的 main_grad 写入
+      ──► 不会和外层 autograd 争抢 nn.Parameter
+```
+我们可以比较这两种方式的差异：
+
+```python
+                                A. 全部 detach              B. 跳过 leaf detach
+────────────────────────────────────────────────────────────────────────────────────────
+ctx.detached_args 中            影子副本                    原始 nn.Parameter 本体
+nn.Parameter 的身份             (is_leaf=True 但
+                                不是 nn.Parameter)
+
+访问 weight.main_grad /         不能                        能
+grad_added_to_main_grad
+
+内部反传 API                    torch.autograd.backward     torch.autograd.grad
+                                (outputs, grads)            (outputs, inputs, grads)
+
+内部反传副作用                  有，但只写到影子副本上      若用 backward() 会写到真
+(写 .grad / main_grad)          → 安全                      nn.Parameter → 与外层
+                                                            autograd 冲突
+
+梯度交给外层的方式              读影子 leaf 的 .grad        拿 torch.autograd.grad
+                                并 return                   的返回值直接 return
+
+是否会 double-accumulate        不会                        grad() 路径：不会
+                                                            backward() 路径：取决于
+                                                            run_function 是否已自行处理
+
+适用场景                        checkpoint 的函数内部       checkpoint 的函数需要通过
+                                不需要触达权重对象本身      main_grad 做 fused wgrad
+                                                            累加（HybridEP / SyncFree 等）
+────────────────────────────────────────────────────────────────────────────────────────
+```
+
+
 ## 综合对比
 
 同样地，我们也可以使用重计算来实现 sync-free HybridEP 的 expert dispatcher。我们有两个维度来看待 expert dispatcher：通信手段选择 all-to-all 或者 HybridEP，以及是否开启重计算。组合后，我们可以得到下面的对比分析表：
@@ -952,6 +1115,34 @@ dispatched_fc2_weights = self.expert_dispatcher.expert_dispatch(fc2_expert_dispa
 如果用 `self` 存状态，第二次 `preprocess` 会覆盖第一次的状态（比如 `self.handle`），导致 fc1 的 dispatch 信息丢失。而 metadata 对象让两次调用的状态完全独立。
 第二个好处是更好的数据结构生命周期管理，特别是在使用 CUDA Graph 和重计算的时候。在 CUDA Graph 捕获时，中间状态需要在 graph 外部被引用和管理。metadata 作为显式对象，生命周期由调用方控制，比隐式的 `self` 状态更容易被 CUDA Graph 正确追踪和重放，因此 metadata 的模式对 CUDA Graph 更加友好。
 
+## 重设让redundant expert slots并非参数
+
+还有一点需要注意，redundant expert slots实际上并不是真正的模型参数`nn.Parameter`，只是一个占位符，因此我们需要进行一些配置来改变它们。
+首先看一下初始化的逻辑：
+```python
+self.experts = build_module(
+    self.submodules.experts,
+    num_echo_local_experts+self.num_home_experts,  # ← 多创建了 echo slot
+    ...
+)
+self.echo_expert_indices = list(
+    range(self.num_home_experts, num_echo_local_experts + self.num_home_experts)
+)
+...
+self.experts.free_expert_parameters(self.echo_expert_indices)
+```
+`build_module` 会按 `num_home + num_echo` 创建出 `weight0, weight1, ..., weightN` 全部为 `nn.Parameter`（调 `torch.empty` 分配显存）。但其中 只有 `weight0..weight_{home-1}` 是真正的 home 权重，后面的 `weightN_home..weightN` 只是"占位槽"，它们在前向时会被 `set_expert_weights` 替换成从其他 EP rank dispatch 过来的权重副本。因此需要从 `nn.Module` 的参数注册表里摘掉。
+```python
+def free_expert_parameters(self, expert_indices: List[int]):
+    """Free echo expert parameters."""
+    to_free_weight_names = [f'weight{i}' for i in expert_indices]
+    for module in [self.linear_fc1, self.linear_fc2]:
+        # Clear all parameters in the module
+        for name, param in list(module.named_parameters()):
+            if name in to_free_weight_names:
+                delattr(module, name)
+                module._parameters.pop(name, None)
+```
 
 # Megatron Full CUDA Graph 的实现机制
 
